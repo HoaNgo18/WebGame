@@ -2,10 +2,10 @@
   "name": "shared",
   "version": "1.0.0",
   "type": "module",
-  "main": "src/constants.js",
+  "main": "src/index.js",
   "exports": {
+    ".": "./src/index.js",
     "./constants": "./src/constants.js",
-    "./packetTypes": "./src/packetTypes.js",
-    "./utils": "./src/utils.js"
+    "./packetTypes": "./src/packetTypes.js"
   }
 }
