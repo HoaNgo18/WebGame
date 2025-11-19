@@ -1,11 +1,12 @@
 import { WebSocketServer } from 'ws';
 import { PacketType } from 'shared/packetTypes';
+import { Game } from './Game.js';
 
 export class Server {
     constructor(port = 3000) {
         this.port = port;
         this.wss = null;
-        this.players = new Map();
+        this.game = new Game(this);
         this.playerIdCounter = 0;
     }
 
@@ -15,6 +16,9 @@ export class Server {
         this.wss.on('connection', (ws) => {
             this.handleConnection(ws);
         });
+
+        // Start game loop
+        this.game.start();
 
         console.log(`WebSocket server running on port ${this.port}`);
     }
@@ -44,7 +48,7 @@ export class Server {
                     break;
 
                 case PacketType.INPUT:
-                    this.handleInput(playerId, packet);
+                    this.game.handleInput(playerId, packet.input);
                     break;
             }
         } catch (err) {
@@ -53,61 +57,30 @@ export class Server {
     }
 
     handleJoin(ws, playerId, packet) {
-        const player = {
-            id: playerId,
-            name: packet.name || `Player${playerId}`,
-            x: Math.random() * 1000,
-            y: Math.random() * 1000,
-            rotation: 0,
-            ws
-        };
-
-        this.players.set(playerId, player);
+        const player = this.game.addPlayer(playerId, packet.name || `Player${playerId}`, ws);
 
         // Send init to new player
         this.send(ws, {
             type: PacketType.INIT,
             playerId,
-            players: this.getPlayersData()
+            players: this.game.getPlayersData()
         });
 
         // Broadcast new player to others
         this.broadcast({
             type: PacketType.PLAYER_JOIN,
-            player: this.getPlayerData(player)
+            player: player.toJSON()
         }, playerId);
-    }
-
-    handleInput(playerId, packet) {
-        const player = this.players.get(playerId);
-        if (!player) return;
-
-        // TODO: Process input in Phase 4
-        player.input = packet.input;
     }
 
     handleDisconnect(playerId) {
         console.log(`Player ${playerId} disconnected`);
-        this.players.delete(playerId);
+        this.game.removePlayer(playerId);
 
         this.broadcast({
             type: PacketType.PLAYER_LEAVE,
             playerId
         });
-    }
-
-    getPlayerData(player) {
-        return {
-            id: player.id,
-            name: player.name,
-            x: player.x,
-            y: player.y,
-            rotation: player.rotation
-        };
-    }
-
-    getPlayersData() {
-        return Array.from(this.players.values()).map(p => this.getPlayerData(p));
     }
 
     send(ws, data) {
@@ -118,8 +91,8 @@ export class Server {
 
     broadcast(data, excludeId = null) {
         const message = JSON.stringify(data);
-        this.players.forEach((player) => {
-            if (player.id !== excludeId && player.ws.readyState === 1) {
+        this.game.players.forEach((player) => {
+            if (player.id !== excludeId && player.ws && player.ws.readyState === 1) {
                 player.ws.send(message);
             }
         });
