@@ -1,34 +1,39 @@
-import { Entity } from './Entity.js';
-import { ITEM_RADIUS, ITEM_CONFIG } from 'shared/constants';
+import { ITEM_CONFIG } from 'shared/constants';
 
-export class Item extends Entity {
-    constructor(id, x, y, itemType) {
-        super(id, x, y);
-        this.itemType = itemType;
-        this.radius = ITEM_RADIUS;
+export class Item {
+    constructor(x, y, type) {
+        this.id = Math.random().toString(36).substr(2, 9);
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.radius = 18;
 
-        const config = ITEM_CONFIG[itemType];
-        this.name = config.name;
-        this.effect = config.effect;
-        this.glowColor = config.glowColor;
+        // Lấy config từ constants
+        this.config = ITEM_CONFIG[type] || {};
+        this.effect = this.config.effect || {};
 
-        // Items disappear after 30 seconds
+        // Metadata for client rendering
+        this.sprite = this.config.sprite;
+        this.glowColor = this.config.glowColor;
+
+        // Lifetime (30 seconds before despawn)
+        this.createdAt = Date.now();
         this.lifetime = 30000;
-        this.spawnTime = Date.now();
     }
 
-    update(deltaTime) {
-        // Check if expired
-        if (Date.now() - this.spawnTime > this.lifetime) {
-            this.active = false;
-        }
+    shouldDespawn() {
+        return Date.now() - this.createdAt > this.lifetime;
     }
 
-    toJSON() {
+    serialize() {
         return {
-            ...super.toJSON(),
-            itemType: this.itemType,
-            glowColor: this.glowColor
+            id: this.id,
+            x: Math.round(this.x),
+            y: Math.round(this.y),
+            type: this.type,
+            sprite: this.sprite,
+            glowColor: this.glowColor,
+            rarity: this.rarity
         };
     }
 }

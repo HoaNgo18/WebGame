@@ -1,43 +1,49 @@
-import { Entity } from './Entity.js';
-import { CHEST_RADIUS, CHEST_HP, ITEM_TYPES, ITEM_CONFIG } from 'shared/constants';
+import { CHEST_RADIUS, CHEST_HP, CHEST_TYPES, STATION_STATS } from 'shared/constants';
+export class Chest {
+    constructor(x, y, id, type = CHEST_TYPES.NORMAL) {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.type = type;
+        this.dead = false;
 
-export class Chest extends Entity {
-    constructor(id, x, y) {
-        super(id, x, y);
-        this.radius = CHEST_RADIUS;
-        this.hp = CHEST_HP;
-        this.destroyed = false;
-    }
+        // Logic set stats
+        if (type === CHEST_TYPES.STATION) {
+            // Station dùng hình chữ nhật
+            this.width = STATION_STATS.width;
+            this.height = STATION_STATS.height;
 
-    takeDamage(amount = 1) {
-        this.hp -= amount;
-        if (this.hp <= 0) {
-            this.destroyed = true;
-            return true;
+            this.radius = Math.sqrt(this.width ** 2 + this.height ** 2) / 2; // Đường chéo / 2
+
+            this.health = STATION_STATS.hp;
+            this.maxHealth = STATION_STATS.hp;
+
+            this.rotation = Math.random() * Math.PI * 2;
+            this.rotationSpeed = (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 15);
+        } else {
+            // Chest thường dùng hình tròn
+            this.radius = CHEST_RADIUS;
+            this.width = CHEST_RADIUS * 2;
+            this.height = CHEST_RADIUS * 2;
+
+            this.health = CHEST_HP;
+            this.maxHealth = CHEST_HP;
         }
-        return false;
     }
 
-    getRandomDrop() {
-        const itemTypes = Object.keys(ITEM_CONFIG);
-        const drops = [];
-
-        // Roll for 1-3 items
-        const dropCount = 1 + Math.floor(Math.random() * 3);
-
-        for (let i = 0; i < dropCount; i++) {
-            const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-            drops.push(randomType);
+    update(dt) {
+        if (this.type === CHEST_TYPES.STATION) {
+            this.rotation += this.rotationSpeed * dt;
+            while (this.rotation > Math.PI) this.rotation -= 2 * Math.PI;
+            while (this.rotation < -Math.PI) this.rotation += 2 * Math.PI;
         }
-
-        return drops;
     }
 
-    toJSON() {
-        return {
-            ...super.toJSON(),
-            radius: this.radius,
-            hp: this.hp
-        };
+    takeDamage(amount) {
+        this.health -= amount;
+        if (this.health <= 0) {
+            this.health = 0;
+            this.dead = true;
+        }
     }
 }

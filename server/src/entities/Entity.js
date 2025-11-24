@@ -1,22 +1,13 @@
 export class Entity {
-    constructor(id, x = 0, y = 0) {
-        this.id = id;
+    constructor(x = 0, y = 0) {
         this.x = x;
         this.y = y;
-        this.rotation = 0;
-        this.active = true;
+        this.vx = 0;
+        this.vy = 0;
     }
 
-    update(deltaTime) {
-        // Override in subclass
-    }
-
-    toJSON() {
-        return {
-            id: this.id,
-            x: this.x,
-            y: this.y,
-            rotation: this.rotation
-        };
+    update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
     }
 }
