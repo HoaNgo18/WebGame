@@ -60,6 +60,13 @@ const userSchema = new mongoose.Schema({
         sfxVolume: { type: Number, default: 0.7 }
     },
 
+    // Social
+    friends: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        status: { type: String, enum: ['pending', 'sent', 'accepted', 'blocked'], default: 'pending' },
+        createdAt: { type: Date, default: Date.now }
+    }],
+
     // Timestamps
     createdAt: { type: Date, default: Date.now },
     lastLogin: { type: Date, default: Date.now }

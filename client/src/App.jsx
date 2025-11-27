@@ -23,6 +23,7 @@ function App() {
     const [arenaPlayerCount, setArenaPlayerCount] = useState(0);
     const [arenaWinner, setArenaWinner] = useState(null);
     const [arenaWaitTime, setArenaWaitTime] = useState(60);
+    const [arenaMode, setArenaMode] = useState('arena'); // 'arena' or '1v1'
     const arenaTimeoutRef = useRef(null);
 
     // Safe timeout cleanup
@@ -76,7 +77,7 @@ function App() {
         setGameState('playing');
     };
 
-    const handleStartArena = async (selectedSkinId) => {
+    const handleStartArena = async (selectedSkinId, mode = 'arena', roomId = null) => {
         clearArenaTimeout();
 
         setIsDead(false);
@@ -86,6 +87,7 @@ function App() {
         setArenaCountdown(null);
         setArenaWaitTime(60);
         setArenaPlayerCount(0);
+        setArenaMode(mode);
 
         const skinToUse = selectedSkinId || user.equippedSkin || 'default';
 
@@ -98,7 +100,9 @@ function App() {
             await socket.connectArena({
                 token: localStorage.getItem('game_token'),
                 name: ingameName,
-                skinId: skinToUse
+                skinId: skinToUse,
+                mode: mode,
+                roomId: roomId
             });
 
             setGameState('arena_waiting');
@@ -292,7 +296,7 @@ function App() {
                 <HomeScreen
                     user={user}
                     onPlayClick={(skinId) => handleStartGame(skinId)}
-                    onArenaClick={(skinId) => handleStartArena(skinId)}
+                    onArenaClick={(skinId, mode, roomId) => handleStartArena(skinId, mode, roomId)}
                     onLogout={handleLogout}
                     onLoginSuccess={handleLoginSuccess}
                 />
@@ -303,7 +307,7 @@ function App() {
                 <div className="arena-waiting-container">
 
 
-                    <h1 className="arena-title">ARENA</h1>
+                    <h1 className="arena-title">{arenaMode === '1v1' ? '1v1 DUEL' : 'ARENA'}</h1>
 
                     {arenaCountdown !== null ? (
                         <div className="arena-countdown-container">
@@ -316,7 +320,7 @@ function App() {
                         <div className="arena-status-container">
                             <p className="arena-status-text">Waiting for players...</p>
                             <div className="arena-player-count">
-                                {arenaPlayerCount} / 10
+                                {arenaPlayerCount} / {arenaMode === '1v1' ? 2 : 10}
                             </div>
 
                             {/* Simplified text form */}

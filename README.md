@@ -8,11 +8,11 @@ Dự án game IO thời gian thực lấy cảm hứng từ evowar.io. Người 
 - **Shared**: Logic dùng chung cho Client và Server
 
 ## Tính năng chính
-- ⚔️ **PvP thời gian thực**: Chiến đấu mượt mà với người chơi khác.
-- 🚀 **Hệ thống nâng cấp**: Tăng kích thước kiếm, tốc độ di chuyển và sức mạnh.
-- 📱 **Đa nền tảng**: Hỗ trợ chơi trên cả PC (chuột/phím) và Mobile (cảm ứng).
-- 🏆 **Bảng xếp hạng**: Theo dõi thành tích người chơi.
-- 🔐 **Hệ thống tài khoản**: Đăng ký và đăng nhập để lưu trữ tiến trình.
+- **PvP thời gian thực**: Chiến đấu mượt mà với người chơi khác.
+- **Hệ thống nâng cấp**: Tăng kích thước kiếm, tốc độ di chuyển và sức mạnh.
+- **Đa nền tảng**: Hỗ trợ chơi trên cả PC (chuột/phím) và Mobile (cảm ứng).
+- **Bảng xếp hạng**: Theo dõi thành tích người chơi.
+- **Hệ thống tài khoản**: Đăng ký và đăng nhập để lưu trữ tiến trình.
 
 ## Cài đặt & Chạy
 

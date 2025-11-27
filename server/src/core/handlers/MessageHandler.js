@@ -41,6 +41,10 @@ export class MessageHandler {
                 this.server.arena.leaveArena(clientId);
                 break;
 
+            case PacketType.FRIEND_INVITE:
+                await this.handleFriendInvite(clientId, packet);
+                break;
+
             case PacketType.INPUT:
                 this.server.game.handleInput(clientId, packet.data);
                 break;
@@ -137,12 +141,26 @@ export class MessageHandler {
             );
         }
 
-        const room = this.server.arena.joinArena(
-            clientId,
-            playerInfo.name,
-            playerInfo.userId,
-            playerInfo.skinId
-        );
+        const mode = packet.mode || 'arena';
+        const roomId = packet.roomId || null;
+        let room;
+
+        if (mode === '1v1') {
+            room = this.server.arena.join1v1(
+                clientId,
+                playerInfo.name,
+                playerInfo.userId,
+                playerInfo.skinId,
+                roomId
+            );
+        } else {
+            room = this.server.arena.joinArena(
+                clientId,
+                playerInfo.name,
+                playerInfo.userId,
+                playerInfo.skinId
+            );
+        }
 
         if (!room) {
             this.server.sendToClient(clientId, {
@@ -260,6 +278,40 @@ export class MessageHandler {
             this.server.sendToClient(clientId, {
                 type: 'USER_DATA_UPDATE',
                 ...profile
+            });
+        }
+    }
+
+    /**
+     * Handle FRIEND_INVITE
+     */
+    async handleFriendInvite(clientId, packet) {
+        const client = this.server.clients.get(clientId);
+        const { friendId, mode } = packet;
+
+        // Check if inviter is in a room
+        if (!client.arenaRoomId) {
+            return;
+        }
+
+        const room = this.server.arena.getRoom(client.arenaRoomId);
+        if (!room) return;
+
+        // Find friend's client
+        let friendClient = null;
+        for (const [cid, c] of this.server.clients) {
+            if (c.userId && c.userId.toString() === friendId) {
+                friendClient = c;
+                break;
+            }
+        }
+
+        if (friendClient) {
+            this.server.sendToClient(friendClient.id, {
+                type: PacketType.GAME_INVITE,
+                inviterName: client.player ? client.player.name : 'A friend',
+                mode: mode || '1v1',
+                roomId: room.id
             });
         }
     }

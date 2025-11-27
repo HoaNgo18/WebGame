@@ -32,6 +32,14 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     const [error, setError] = useState('');
     const [settingsTab, setSettingsTab] = useState('general'); // general, account, controls
     const [accountModal, setAccountModal] = useState(null); // 'displayName', 'password', 'delete'
+    const [friends, setFriends] = useState([]);
+    const [friendTab, setFriendTab] = useState('list'); // 'list', 'add', 'requests'
+    const [searchName, setSearchName] = useState('');
+    const [friendError, setFriendError] = useState('');
+    const [friendSuccess, setFriendSuccess] = useState('');
+    const [inviteModal, setInviteModal] = useState(null); // { inviterName, mode, roomId }
+    const [showAddFriend, setShowAddFriend] = useState(false);
+    const [showRequests, setShowRequests] = useState(false);
     const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
     const API_URL = `${BASE_URL}/api`;
 
@@ -66,17 +74,140 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
             socket.send({ type: PacketType.REQUEST_USER_DATA });
             hasRequestedData.current = true;
         }
-    }, [user]);
+
+        // Listen for Invites
+        const handleGameInvite = (packet) => {
+            if (packet.type === PacketType.GAME_INVITE) {
+                setInviteModal({
+                    inviterName: packet.inviterName,
+                    mode: packet.mode,
+                    roomId: packet.roomId
+                });
+            }
+        };
+
+        const unsubscribe = socket.subscribe(handleGameInvite);
+        return () => unsubscribe();
+    }, [user]); // user dependency to ensure socket is ready? Actually socket is global.
 
     // Note: USER_DATA_UPDATE is handled by App.jsx which updates the `user` prop
     // HomeScreen just syncs localUser from the prop - no separate listener needed
 
-    // Load leaderboard when tab changes to leaderboard
+    // Load leaderboard or friends when tab changes
     useEffect(() => {
         if (activeTab === 'leaderboard') {
             loadLeaderboard();
+        } else if (activeTab === 'friends') {
+            loadFriends();
         }
     }, [activeTab]);
+
+    const loadFriends = async () => {
+        if (!localUser || localUser.isGuest) return;
+        try {
+            const token = localStorage.getItem('game_token');
+            const res = await fetch(`${API_URL}/friends`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setFriends(data.friends || []);
+            }
+        } catch (err) {
+            console.error('Load friends error:', err);
+        }
+    };
+
+    const handleSendFriendRequest = async () => {
+        if (!searchName) return setFriendError('Enter a username');
+        setFriendError('');
+        setFriendSuccess('');
+
+        try {
+            const token = localStorage.getItem('game_token');
+            const res = await fetch(`${API_URL}/friends/request`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ targetUsername: searchName })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setFriendSuccess('Friend request sent!');
+                setSearchName('');
+                loadFriends(); // Refresh list to show sent status
+            } else {
+                setFriendError(data.error || 'Failed to send request');
+            }
+        } catch (err) {
+            setFriendError('Network error');
+        }
+    };
+
+    const handleAcceptFriend = async (requesterId) => {
+        try {
+            const token = localStorage.getItem('game_token');
+            await fetch(`${API_URL}/friends/accept`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ requesterId })
+            });
+            loadFriends();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleRejectFriend = async (requesterId) => {
+        try {
+            const token = localStorage.getItem('game_token');
+            await fetch(`${API_URL}/friends/reject`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ requesterId })
+            });
+            loadFriends();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleRemoveFriend = async (friendId) => {
+        if (!confirm('Are you sure you want to remove this friend?')) return;
+        try {
+            const token = localStorage.getItem('game_token');
+            await fetch(`${API_URL}/friends/remove`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ friendId })
+            });
+            loadFriends();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleInviteFriend = (friendId, mode) => {
+        // Assume friendId is userId (string)
+        // We need to send packet via socket
+        socket.send({
+            type: PacketType.FRIEND_INVITE,
+            friendId: friendId,
+            mode: mode
+        });
+        alert(`Invite sent for ${mode}!`);
+    };
 
     const loadSkins = () => {
         setSkins([
@@ -288,6 +419,8 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                             </div>
                             <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>Home</button>
                             <button className={`nav-btn ${activeTab === 'shop' ? 'active' : ''}`} onClick={() => setActiveTab('shop')}>Shop</button>
+                            <button className={`nav-btn ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => setActiveTab('friends')}>Friends</button>
+                            <button className={`nav-btn ${activeTab === 'account' ? 'active' : ''}`} onClick={() => setActiveTab('account')}>Account</button>
                             <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>Stats</button>
                             <button className={`nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => setActiveTab('leaderboard')}>Leaderboard</button>
 
@@ -310,10 +443,18 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                     </button>
 
                                     <button
-                                        onClick={() => onArenaClick(localUser.equippedSkin)}
+                                        onClick={() => onArenaClick(localUser.equippedSkin, 'arena')}
                                         className="game-mode-btn arena-btn"
                                     >
                                         ARENA
+                                    </button>
+
+                                    <button
+                                        onClick={() => onArenaClick(localUser.equippedSkin, '1v1')}
+                                        className="game-mode-btn arena-btn"
+                                        style={{ background: 'linear-gradient(45deg, #FF9900, #FF5500)' }}
+                                    >
+                                        1 VS 1
                                     </button>
                                 </div>
                             )}
@@ -365,6 +506,48 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                 </div>
                             )}
 
+                            {activeTab === 'account' && (
+                                <div>
+                                    <h2 className="section-title">ACCOUNT MANAGEMENT</h2>
+                                    <div className="settings-container-compact" style={{ marginTop: '20px' }}>
+                                        {localUser && !localUser.isGuest ? (
+                                            <>
+                                                <div className="account-info-compact">
+                                                    <div className="info-row-compact">
+                                                        <span>Username:</span>
+                                                        <strong>{localUser.username}</strong>
+                                                    </div>
+                                                    <div className="info-row-compact">
+                                                        <span>Display Name:</span>
+                                                        <strong>{localUser.displayName || localUser.username}</strong>
+                                                    </div>
+                                                    <div className="info-row-compact">
+                                                        <span>Email:</span>
+                                                        <strong>{localUser.email || 'Not set'}</strong>
+                                                    </div>
+                                                </div>
+
+                                                <div className="account-actions">
+                                                    <button className="account-action-btn" onClick={() => setAccountModal('displayName')}>
+                                                        Change Display Name
+                                                    </button>
+                                                    <button className="account-action-btn" onClick={() => setAccountModal('password')}>
+                                                        Change Password
+                                                    </button>
+                                                    <button className="account-action-btn danger-btn-sm" onClick={() => setAccountModal('delete')}>
+                                                        Delete Account
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="settings-guest-message-compact">
+                                                Account settings require a registered account.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {activeTab === 'profile' && (
                                 <div>
                                     <h2 className="section-title">PLAYER STATS</h2>
@@ -404,6 +587,84 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                                 <span>Top 3</span>
                                                 <span className="stats-value">{localUser?.arenaTop3 || 0}</span>
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+
+
+                            {activeTab === 'friends' && (
+                                <div className="friends-page">
+                                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '15px' }}>
+                                        <h2 className="section-title" style={{ marginBottom: 0 }}>FRIENDS</h2>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <button
+                                                className="account-action-btn"
+                                                title="Add new friend"
+                                                style={{
+                                                    width: '32px',
+                                                    height: '32px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '20px',
+                                                    padding: 0
+                                                }}
+                                                onClick={() => setShowAddFriend(true)}
+                                            >
+                                                +
+                                            </button>
+                                            <button
+                                                className="account-action-btn"
+                                                title="Friend Requests"
+                                                style={{
+                                                    width: '32px',
+                                                    height: '32px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '16px',
+                                                    padding: 0,
+                                                    position: 'relative'
+                                                }}
+                                                onClick={() => setShowRequests(true)}
+                                            >
+                                                ...
+                                                {friends.filter(f => f.status === 'pending').length > 0 &&
+                                                    <span className="badge" style={{ position: 'absolute', top: '-5px', right: '-5px' }}>{friends.filter(f => f.status === 'pending').length}</span>
+                                                }
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Friend List (Custom Stats Style) */}
+                                    <div className="stats-section">
+                                        <div className="stats-list">
+                                            {friends.filter(f => f.status === 'accepted').length === 0 ? (
+                                                <div className="no-data" style={{ padding: '20px', textAlign: 'center', color: '#666' }}>No friends yet. Add some!</div>
+                                            ) : (
+                                                friends.filter(f => f.status === 'accepted').map((friend, idx) => (
+                                                    <div key={friend.id} className="stats-row" style={{ justifyContent: 'space-between' }}>
+                                                        <span style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                            <span style={{ color: '#666', width: '25px', fontWeight: 'bold' }}>#{idx + 1}</span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span className={`status-indicator ${friend.isOnline ? 'online' : 'offline'}`} style={{ width: '8px', height: '8px', borderRadius: '50%', background: friend.isOnline ? '#4CAF50' : '#666' }}></span>
+                                                                <span style={{ color: friend.isOnline ? '#fff' : '#aaa', fontWeight: friend.isOnline ? 'bold' : 'normal' }}>{friend.displayName || friend.username}</span>
+                                                            </div>
+                                                        </span>
+                                                        <div className="friend-actions" style={{ display: 'flex', gap: '10px' }}>
+                                                            <button className="action-btn-sm" style={{ padding: '6px 12px', background: 'rgba(255, 215, 0, 0.1)', border: '1px solid rgba(255, 215, 0, 0.3)', color: '#FFD700', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }} onClick={() => {
+                                                                const mode = prompt('Enter mode to invite (1v1 or arena):', '1v1');
+                                                                if (mode === '1v1' || mode === 'arena') {
+                                                                    handleInviteFriend(friend.user, mode);
+                                                                }
+                                                            }}>INVITE</button>
+                                                            <button className="action-btn-sm danger" style={{ padding: '6px 12px', background: 'rgba(255, 68, 68, 0.1)', border: '1px solid rgba(255, 68, 68, 0.3)', color: '#FF4444', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }} onClick={() => handleRemoveFriend(friend.id)}>DELETE</button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -466,12 +727,6 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                             onClick={() => setSettingsTab('general')}
                                         >
                                             General
-                                        </button>
-                                        <button
-                                            className={`settings-tab ${settingsTab === 'account' ? 'active' : ''}`}
-                                            onClick={() => setSettingsTab('account')}
-                                        >
-                                            Account
                                         </button>
                                         <button
                                             className={`settings-tab ${settingsTab === 'controls' ? 'active' : ''}`}
@@ -596,45 +851,6 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                         </div>
                                     )}
 
-                                    {/* Account Tab - Compact with buttons */}
-                                    {settingsTab === 'account' && (
-                                        <div className="settings-container-compact">
-                                            {localUser && !localUser.isGuest ? (
-                                                <>
-                                                    <div className="account-info-compact">
-                                                        <div className="info-row-compact">
-                                                            <span>Username:</span>
-                                                            <strong>{localUser.username}</strong>
-                                                        </div>
-                                                        <div className="info-row-compact">
-                                                            <span>Display Name:</span>
-                                                            <strong>{localUser.displayName || localUser.username}</strong>
-                                                        </div>
-                                                        <div className="info-row-compact">
-                                                            <span>Email:</span>
-                                                            <strong>{localUser.email || 'Not set'}</strong>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="account-actions">
-                                                        <button className="account-action-btn" onClick={() => setAccountModal('displayName')}>
-                                                            Change Display Name
-                                                        </button>
-                                                        <button className="account-action-btn" onClick={() => setAccountModal('password')}>
-                                                            Change Password
-                                                        </button>
-                                                        <button className="account-action-btn danger-btn-sm" onClick={() => setAccountModal('delete')}>
-                                                            Delete Account
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="settings-guest-message-compact">
-                                                    Account settings require a registered account.
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
 
                                     {/* Controls Tab - Compact */}
                                     {settingsTab === 'controls' && (
@@ -658,227 +874,299 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
             )}
 
             {/* Login Modal */}
-            {showLogin && (
-                <>
-                    <div className="modal-overlay" onClick={() => setShowLogin(false)}></div>
-                    <div className="login-modal">
-                        <div style={{ display: 'flex', marginBottom: '20px' }}>
-                            <button className={`tab-btn ${loginTab === 'guest' ? 'active' : ''}`} onClick={() => setLoginTab('guest')}>Guest</button>
-                            <button className={`tab-btn ${loginTab === 'login' ? 'active' : ''}`} onClick={() => setLoginTab('login')}>Login</button>
-                            <button className={`tab-btn ${loginTab === 'register' ? 'active' : ''}`} onClick={() => setLoginTab('register')}>Register</button>
+            {
+                showLogin && (
+                    <>
+                        <div className="modal-overlay" onClick={() => setShowLogin(false)}></div>
+                        <div className="login-modal">
+                            <div style={{ display: 'flex', marginBottom: '20px' }}>
+                                <button className={`tab-btn ${loginTab === 'guest' ? 'active' : ''}`} onClick={() => setLoginTab('guest')}>Guest</button>
+                                <button className={`tab-btn ${loginTab === 'login' ? 'active' : ''}`} onClick={() => setLoginTab('login')}>Login</button>
+                                <button className={`tab-btn ${loginTab === 'register' ? 'active' : ''}`} onClick={() => setLoginTab('register')}>Register</button>
+                            </div>
+
+                            {loginTab === 'guest' && (
+                                <div>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter your name"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="modal-input"
+                                    />
+                                    <button onClick={handleGuestPlay} disabled={connecting} className="modal-btn">
+                                        {connecting ? 'Connecting...' : 'Play as Guest'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {loginTab === 'login' && (
+                                <div>
+                                    <input
+                                        type="text"
+                                        placeholder="Username"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="modal-input"
+                                    />
+                                    <input
+                                        type="password"
+                                        placeholder="Password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="modal-input"
+                                    />
+                                    <button onClick={handleLogin} disabled={connecting} className="modal-btn">
+                                        {connecting ? 'Logging in...' : 'Login'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {loginTab === 'register' && (
+                                <div>
+                                    <input
+                                        type="text"
+                                        placeholder="Username"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="modal-input"
+                                    />
+                                    <input
+                                        type="email"
+                                        placeholder="Email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="modal-input"
+                                    />
+                                    <input
+                                        type="password"
+                                        placeholder="Password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="modal-input"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Display Name"
+                                        value={displayName}
+                                        onChange={(e) => setDisplayName(e.target.value)}
+                                        className="modal-input"
+                                    />
+                                    <button onClick={handleRegister} disabled={connecting} className="modal-btn">
+                                        {connecting ? 'Registering...' : 'Register'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {error && <div className="error-msg">{error}</div>}
                         </div>
+                    </>
+                )
+            }
 
-                        {loginTab === 'guest' && (
-                            <div>
-                                <input
-                                    type="text"
-                                    placeholder="Enter your name"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="modal-input"
-                                />
-                                <button onClick={handleGuestPlay} disabled={connecting} className="modal-btn">
-                                    {connecting ? 'Connecting...' : 'Play as Guest'}
-                                </button>
-                            </div>
-                        )}
+            {/* Account Modals */}
+            {
+                accountModal && (
+                    <>
+                        <div className="modal-overlay" onClick={() => setAccountModal(null)}></div>
+                        <div className="account-modal">
+                            {/* Change Display Name Modal */}
+                            {accountModal === 'displayName' && (
+                                <>
+                                    <h3>Change Display Name</h3>
+                                    <input
+                                        type="text"
+                                        placeholder="New display name"
+                                        className="modal-input"
+                                        defaultValue={localUser?.displayName || localUser?.username || ''}
+                                        id="modal-display-name"
+                                    />
+                                    <div className="modal-btns">
+                                        <button className="modal-btn-primary" onClick={async () => {
+                                            const input = document.getElementById('modal-display-name');
+                                            const newName = input.value.trim();
+                                            if (!newName) return;
 
-                        {loginTab === 'login' && (
-                            <div>
-                                <input
-                                    type="text"
-                                    placeholder="Username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="modal-input"
-                                />
-                                <input
-                                    type="password"
-                                    placeholder="Password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="modal-input"
-                                />
-                                <button onClick={handleLogin} disabled={connecting} className="modal-btn">
-                                    {connecting ? 'Logging in...' : 'Login'}
-                                </button>
-                            </div>
-                        )}
+                                            try {
+                                                const token = localStorage.getItem('game_token');
+                                                const res = await fetch(`${API_URL}/auth/update-profile`, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/json',
+                                                        'Authorization': `Bearer ${token}`
+                                                    },
+                                                    body: JSON.stringify({ displayName: newName })
+                                                });
+                                                if (res.ok) {
+                                                    // Update local state immediately
+                                                    const updatedUser = { ...localUser, displayName: newName };
+                                                    setLocalUser(updatedUser);
+                                                    setAccountModal(null);
+                                                }
+                                            } catch (err) {
+                                                console.error('Failed to update display name');
+                                            }
+                                        }}>Save</button>
+                                        <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                    </div>
+                                </>
+                            )}
 
-                        {loginTab === 'register' && (
-                            <div>
-                                <input
-                                    type="text"
-                                    placeholder="Username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="modal-input"
-                                />
-                                <input
-                                    type="email"
-                                    placeholder="Email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="modal-input"
-                                />
-                                <input
-                                    type="password"
-                                    placeholder="Password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="modal-input"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Display Name"
-                                    value={displayName}
-                                    onChange={(e) => setDisplayName(e.target.value)}
-                                    className="modal-input"
-                                />
-                                <button onClick={handleRegister} disabled={connecting} className="modal-btn">
-                                    {connecting ? 'Registering...' : 'Register'}
-                                </button>
-                            </div>
-                        )}
+                            {/* Change Password Modal */}
+                            {accountModal === 'password' && (
+                                <>
+                                    <h3>Change Password</h3>
+                                    <input type="password" placeholder="Current password" className="modal-input" id="modal-current-pw" />
+                                    <input type="password" placeholder="New password" className="modal-input" id="modal-new-pw" />
+                                    <input type="password" placeholder="Confirm password" className="modal-input" id="modal-confirm-pw" />
+                                    <p id="pw-error" style={{ color: '#FF4444', fontSize: '12px', margin: '5px 0', display: 'none' }}></p>
+                                    <div className="modal-btns">
+                                        <button className="modal-btn-primary" onClick={async () => {
+                                            const currentPw = document.getElementById('modal-current-pw').value;
+                                            const newPw = document.getElementById('modal-new-pw').value;
+                                            const confirmPw = document.getElementById('modal-confirm-pw').value;
+                                            const errorEl = document.getElementById('pw-error');
 
-                        {error && <div className="error-msg">{error}</div>}
+                                            const showError = (msg) => {
+                                                errorEl.textContent = msg;
+                                                errorEl.style.display = 'block';
+                                            };
+
+                                            if (!currentPw || !newPw || !confirmPw) {
+                                                showError('Please fill all fields');
+                                                return;
+                                            }
+                                            if (newPw !== confirmPw) {
+                                                showError('Passwords do not match');
+                                                return;
+                                            }
+                                            if (newPw.length < 6) {
+                                                showError('Password must be at least 6 characters');
+                                                return;
+                                            }
+
+                                            try {
+                                                const token = localStorage.getItem('game_token');
+                                                const res = await fetch(`${API_URL}/auth/change-password`, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/json',
+                                                        'Authorization': `Bearer ${token}`
+                                                    },
+                                                    body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw })
+                                                });
+                                                const data = await res.json();
+                                                if (res.ok) {
+                                                    setAccountModal(null);
+                                                } else {
+                                                    showError(data.error || 'Failed to change password');
+                                                }
+                                            } catch (err) {
+                                                showError('Failed to change password');
+                                            }
+                                        }}>Change Password</button>
+                                        <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Delete Account Modal */}
+                            {accountModal === 'delete' && (
+                                <>
+                                    <h3 style={{ color: '#FF4444' }}>Delete Account</h3>
+                                    <p style={{ color: '#888', marginBottom: '20px' }}>
+                                        This will permanently delete your account and all data. This cannot be undone.
+                                    </p>
+                                    <div className="modal-btns">
+                                        <button className="modal-btn-danger" onClick={async () => {
+                                            if (!confirm('Are you ABSOLUTELY sure? ALL data will be lost!')) return;
+
+                                            try {
+                                                const token = localStorage.getItem('game_token');
+                                                const res = await fetch(`${API_URL}/auth/delete-account`, {
+                                                    method: 'DELETE',
+                                                    headers: { 'Authorization': `Bearer ${token}` }
+                                                });
+                                                if (res.ok) {
+                                                    onLogout();
+                                                }
+                                            } catch (err) {
+                                                console.error('Failed to delete account');
+                                            }
+                                        }}>Delete My Account</button>
+                                        <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </>
+                )
+            }
+
+            {/* Invite Modal */}
+            {inviteModal && (
+                <>
+                    <div className="modal-overlay"></div>
+                    <div className="modal-box">
+                        <h3>Game Invite</h3>
+                        <p>{inviteModal.inviterName} invited you to play {inviteModal.mode}!</p>
+                        <div className="modal-btns">
+                            <button className="modal-btn-cancel" onClick={() => setInviteModal(null)}>Decline</button>
+                            <button className="modal-btn-primary" onClick={() => {
+                                onArenaClick(localUser?.equippedSkin, inviteModal.mode, inviteModal.roomId);
+                                setInviteModal(null);
+                            }}>Accept</button>
+                        </div>
                     </div>
                 </>
             )}
 
-            {/* Account Modals */}
-            {accountModal && (
+            {/* Additional Modals for Friends */}
+            {showAddFriend && (
                 <>
-                    <div className="modal-overlay" onClick={() => setAccountModal(null)}></div>
+                    <div className="modal-overlay" onClick={() => setShowAddFriend(false)}></div>
                     <div className="account-modal">
-                        {/* Change Display Name Modal */}
-                        {accountModal === 'displayName' && (
-                            <>
-                                <h3>Change Display Name</h3>
-                                <input
-                                    type="text"
-                                    placeholder="New display name"
-                                    className="modal-input"
-                                    defaultValue={localUser?.displayName || localUser?.username || ''}
-                                    id="modal-display-name"
-                                />
-                                <div className="modal-btns">
-                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
-                                    <button className="modal-btn-primary" onClick={async () => {
-                                        const input = document.getElementById('modal-display-name');
-                                        const newName = input.value.trim();
-                                        if (!newName) return;
+                        <h3>Add Friend</h3>
+                        <input
+                            type="text"
+                            value={searchName}
+                            onChange={(e) => setSearchName(e.target.value)}
+                            placeholder="Enter username"
+                            className="modal-input"
+                        />
+                        <div className="modal-btns">
+                            <button className="modal-btn-primary" onClick={handleSendFriendRequest}>Add</button>
+                            <button className="modal-btn-cancel" onClick={() => setShowAddFriend(false)}>Cancel</button>
+                        </div>
+                        {friendError && <div className="error-msg" style={{ marginTop: '10px', fontSize: '13px' }}>{friendError}</div>}
+                        {friendSuccess && <div className="success-msg" style={{ marginTop: '10px', color: '#4CAF50', fontSize: '13px' }}>{friendSuccess}</div>}
+                    </div>
+                </>
+            )}
 
-                                        try {
-                                            const token = localStorage.getItem('game_token');
-                                            const res = await fetch(`${API_URL}/auth/update-profile`, {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Content-Type': 'application/json',
-                                                    'Authorization': `Bearer ${token}`
-                                                },
-                                                body: JSON.stringify({ displayName: newName })
-                                            });
-                                            if (res.ok) {
-                                                // Update local state immediately
-                                                const updatedUser = { ...localUser, displayName: newName };
-                                                setLocalUser(updatedUser);
-                                                setAccountModal(null);
-                                            }
-                                        } catch (err) {
-                                            console.error('Failed to update display name');
-                                        }
-                                    }}>Save</button>
-                                </div>
-                            </>
+            {showRequests && (
+                <>
+                    <div className="modal-overlay" onClick={() => setShowRequests(false)}></div>
+                    <div className="account-modal">
+                        <h3>Friend Requests</h3>
+                        {friends.filter(f => f.status === 'pending').length === 0 ? (
+                            <div className="no-data" style={{ padding: '20px 0', textAlign: 'center', color: '#666', fontStyle: 'italic' }}>No pending requests.</div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
+                                {friends.filter(f => f.status === 'pending').map(req => (
+                                    <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '6px' }}>
+                                        <div style={{ fontWeight: 'bold' }}>{req.displayName || req.username}</div>
+                                        <div style={{ display: 'flex', gap: '5px' }}>
+                                            <button className="action-btn-sm confirm" style={{ padding: '6px 12px', background: '#4CAF50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={() => handleAcceptFriend(req.id)}>✓</button>
+                                            <button className="action-btn-sm danger" style={{ padding: '6px 12px', background: '#FF4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={() => handleRejectFriend(req.id)}>✕</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
-
-                        {/* Change Password Modal */}
-                        {accountModal === 'password' && (
-                            <>
-                                <h3>Change Password</h3>
-                                <input type="password" placeholder="Current password" className="modal-input" id="modal-current-pw" />
-                                <input type="password" placeholder="New password" className="modal-input" id="modal-new-pw" />
-                                <input type="password" placeholder="Confirm password" className="modal-input" id="modal-confirm-pw" />
-                                <p id="pw-error" style={{ color: '#FF4444', fontSize: '12px', margin: '5px 0', display: 'none' }}></p>
-                                <div className="modal-btns">
-                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
-                                    <button className="modal-btn-primary" onClick={async () => {
-                                        const currentPw = document.getElementById('modal-current-pw').value;
-                                        const newPw = document.getElementById('modal-new-pw').value;
-                                        const confirmPw = document.getElementById('modal-confirm-pw').value;
-                                        const errorEl = document.getElementById('pw-error');
-
-                                        const showError = (msg) => {
-                                            errorEl.textContent = msg;
-                                            errorEl.style.display = 'block';
-                                        };
-
-                                        if (!currentPw || !newPw || !confirmPw) {
-                                            showError('Please fill all fields');
-                                            return;
-                                        }
-                                        if (newPw !== confirmPw) {
-                                            showError('Passwords do not match');
-                                            return;
-                                        }
-                                        if (newPw.length < 6) {
-                                            showError('Password must be at least 6 characters');
-                                            return;
-                                        }
-
-                                        try {
-                                            const token = localStorage.getItem('game_token');
-                                            const res = await fetch(`${API_URL}/auth/change-password`, {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Content-Type': 'application/json',
-                                                    'Authorization': `Bearer ${token}`
-                                                },
-                                                body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw })
-                                            });
-                                            const data = await res.json();
-                                            if (res.ok) {
-                                                setAccountModal(null);
-                                            } else {
-                                                showError(data.error || 'Failed to change password');
-                                            }
-                                        } catch (err) {
-                                            showError('Failed to change password');
-                                        }
-                                    }}>Change Password</button>
-                                </div>
-                            </>
-                        )}
-
-                        {/* Delete Account Modal */}
-                        {accountModal === 'delete' && (
-                            <>
-                                <h3 style={{ color: '#FF4444' }}>Delete Account</h3>
-                                <p style={{ color: '#888', marginBottom: '20px' }}>
-                                    This will permanently delete your account and all data. This cannot be undone.
-                                </p>
-                                <div className="modal-btns">
-                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
-                                    <button className="modal-btn-danger" onClick={async () => {
-                                        if (!confirm('Are you ABSOLUTELY sure? ALL data will be lost!')) return;
-
-                                        try {
-                                            const token = localStorage.getItem('game_token');
-                                            const res = await fetch(`${API_URL}/auth/delete-account`, {
-                                                method: 'DELETE',
-                                                headers: { 'Authorization': `Bearer ${token}` }
-                                            });
-                                            if (res.ok) {
-                                                onLogout();
-                                            }
-                                        } catch (err) {
-                                            console.error('Failed to delete account');
-                                        }
-                                    }}>Delete My Account</button>
-                                </div>
-                            </>
-                        )}
+                        <div className="modal-btns" style={{ marginTop: '20px' }}>
+                            <button className="modal-btn-cancel" onClick={() => setShowRequests(false)}>Close</button>
+                        </div>
                     </div>
                 </>
             )}
@@ -888,7 +1176,7 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                 <div>v1.0.0</div>
                 <div className="developer-text">Developed by Hoa Ngo</div>
             </div>
-        </div>
+        </div >
     );
 };
 

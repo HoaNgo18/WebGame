@@ -32,5 +32,10 @@ export const PacketType = {
     ARENA_VICTORY: 'arena_victory',     // Server -> Client: Thông báo người thắng
     ARENA_END: 'arena_end',             // Server -> Client: Trận đấu kết thúc
     ARENA_COUNTDOWN: 'arena_countdown', // Server -> Client: Đếm ngược trước khi bắt đầu
-    ARENA_PLAYER_COUNT: 'arena_player_count' // Server -> Client: Số người trong phòng
+    ARENA_PLAYER_COUNT: 'arena_player_count', // Server -> Client: Số người trong phòng
+
+    // Social
+    FRIEND_INVITE: 'friend_invite',     // Client -> Server: Mời bạn (kèm mode)
+    GAME_INVITE: 'game_invite',         // Server -> Client: Nhận lời mời
+    INVITE_RESPONSE: 'invite_response'  // Client -> Server: Chấp nhận/Từ chối
 };

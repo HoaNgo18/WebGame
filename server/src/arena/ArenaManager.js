@@ -1,5 +1,6 @@
 // server/src/arena/ArenaManager.js
 import { ArenaRoom } from './ArenaRoom.js';
+import { OneVsOneRoom } from './OneVsOneRoom.js';
 import { PacketType } from 'shared/packetTypes';
 
 export class ArenaManager {
@@ -66,6 +67,52 @@ export class ArenaManager {
         }
 
         return null;
+    }
+
+    // Handle player joining 1v1 queue
+    join1v1(clientId, name, userId = null, skinId = 'default', roomId = null) {
+        if (roomId) {
+            const room = this.rooms.get(roomId);
+            if (room && room instanceof OneVsOneRoom && room.status === 'waiting' && room.getRealPlayerCount() < room.maxPlayers) {
+                if (room.addPlayer(clientId, name, userId, skinId)) {
+                    return room;
+                }
+            }
+            return null;
+        }
+
+        const room = this.getWaiting1v1Room();
+        if (room.addPlayer(clientId, name, userId, skinId)) {
+            return room;
+        }
+        return null;
+    }
+
+    getWaiting1v1Room() {
+        // Find existing 1v1 room that is waiting and not full
+        for (const room of this.rooms.values()) {
+            if (room instanceof OneVsOneRoom &&
+                room.status === 'waiting' &&
+                room.getRealPlayerCount() < room.maxPlayers) {
+                return room;
+            }
+        }
+
+        // Create new 1v1 room
+        return this.create1v1Room();
+    }
+
+    create1v1Room() {
+        this.roomCounter++;
+        const roomId = `1v1_${this.roomCounter}_${Date.now()}`;
+        const room = new OneVsOneRoom(roomId, this);
+
+        this.rooms.set(roomId, room);
+
+        // Start waiting
+        room.startWaitTimer();
+
+        return room;
     }
 
     // Handle player leaving arena
