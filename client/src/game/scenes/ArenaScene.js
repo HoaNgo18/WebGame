@@ -20,6 +20,9 @@ export class ArenaScene extends Phaser.Scene {
         this.zoneData = null;
         this.zoneGraphics = null;
         this.zoneWarningText = null;
+
+        // Visual Asteroids
+        this.visualAsteroids = [];
     }
 
     preload() {
@@ -37,6 +40,7 @@ export class ArenaScene extends Phaser.Scene {
 
         // 3. Setup UI/Helpers
         this.createRangeCircle();
+        this.createVisualAsteroidBelt();
 
         // 4. ZONE VISUALS INIT
         this.zoneGraphics = this.add.graphics();
@@ -91,6 +95,9 @@ export class ArenaScene extends Phaser.Scene {
         if (this.zoneWarningText.visible) {
             this.zoneWarningText.setAlpha(0.5 + Math.sin(time / 150) * 0.5);
         }
+
+        // 5. Update Visual Asteroids
+        this.updateVisualAsteroids(dt);
     }
 
     updateRangeCircle() {
@@ -247,6 +254,49 @@ export class ArenaScene extends Phaser.Scene {
         } else {
             this.zoneWarningText.setVisible(false);
         }
+    }
+
+    // --- VISUAL ASTEROID BELT ---
+    createVisualAsteroidBelt() {
+        const count = 40; // Medium number
+        const textures = [
+            'meteorBrown_tiny1', 'meteorBrown_tiny2',
+            'meteorGrey_tiny1', 'meteorGrey_tiny2'
+        ]; // Using tiny sprites
+
+        for (let i = 0; i < count; i++) {
+            const tex = Phaser.Math.RND.pick(textures);
+            // Create sprite but don't add to physics or entity manager
+            const sprite = this.add.image(0, 0, tex);
+            sprite.setDepth(-50); // Background layer (above bg, below game objects)
+
+            // Random orbit parameters
+            const r = Phaser.Math.RND.realInRange(1500, 3500); // Large radius around (0,0)
+            const theta = Phaser.Math.RND.realInRange(0, Math.PI * 2);
+            const speed = Phaser.Math.RND.realInRange(0.02, 0.05) * (Math.random() < 0.5 ? 1 : -1); // Slow orbital speed
+
+            this.visualAsteroids.push({
+                sprite,
+                r,
+                theta,
+                speed,
+                rotationSpeed: Phaser.Math.RND.realInRange(-1, 1) // Personal rotation
+            });
+        }
+    }
+
+    updateVisualAsteroids(dt) {
+        this.visualAsteroids.forEach(asteroid => {
+            // Update orbital angle
+            asteroid.theta += asteroid.speed * dt * 0.5; // *0.5 to make it very slow
+
+            // Polar to Cartesian
+            asteroid.sprite.x = Math.cos(asteroid.theta) * asteroid.r;
+            asteroid.sprite.y = Math.sin(asteroid.theta) * asteroid.r;
+
+            // Self rotation
+            asteroid.sprite.rotation += asteroid.rotationSpeed * dt;
+        });
     }
 
     // --- HELPER METHODS ---

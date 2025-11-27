@@ -82,9 +82,9 @@ export class WorldManager {
             // Balanced spawn ratio for better visual variety
             const rand = Math.random();
             let randomSize;
-            if (rand < 0.25) randomSize = 'big';        // 25% big (100px)
-            else if (rand < 0.65) randomSize = 'med';   // 40% med (50px)
-            else if (rand < 0.85) randomSize = 'small'; // 20% small (20px)
+            if (rand < 0.20) randomSize = 'big';        // 25% big (100px)
+            else if (rand < 0.60) randomSize = 'med';   // 50% med (50px)
+            else if (rand < 0.90) randomSize = 'small'; // 20% small (20px)
             else randomSize = 'super';                 // 15% super (200px)
 
             const sizeData = meteorSizes[randomSize];
