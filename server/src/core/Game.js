@@ -3,6 +3,8 @@ import { PacketType } from 'shared/packetTypes';
 import { Player } from '../entities/Player.js';
 import { Projectile } from '../entities/Projectile.js';
 import { CollisionResolver } from './physics/CollisionResolver.js';
+import { FoodManager } from './managers/FoodManager.js';
+import { ObstacleManager } from './managers/ObstacleManager.js';
 
 export class Game {
     constructor(server) {
@@ -12,10 +14,18 @@ export class Game {
         this.projectileIdCounter = 0;
         this.lastUpdate = Date.now();
         this.tickInterval = null;
+
+        // Managers
+        this.foodManager = new FoodManager(this);
+        this.obstacleManager = new ObstacleManager(this);
         this.collisionResolver = new CollisionResolver(this);
     }
 
     start() {
+        // Initialize managers
+        this.foodManager.init();
+        this.obstacleManager.init();
+
         const tickTime = 1000 / TICK_RATE;
         this.tickInterval = setInterval(() => this.update(), tickTime);
         console.log(`Game loop started at ${TICK_RATE} ticks/second`);
@@ -36,6 +46,9 @@ export class Game {
         // Update all players
         this.players.forEach(player => {
             player.update(deltaTime);
+
+            // Check food collision
+            this.foodManager.checkCollision(player);
         });
 
         // Update all projectiles
@@ -58,6 +71,9 @@ export class Game {
             type: PacketType.UPDATE,
             players: Array.from(this.players.values()).map(p => p.toJSON()),
             projectiles: Array.from(this.projectiles.values()).map(p => p.toJSON()),
+            foods: this.foodManager.getFoodsData(),
+            obstacles: this.obstacleManager.getObstaclesData(),
+            nebulas: this.obstacleManager.getNebulasData(),
             timestamp: Date.now()
         };
 
@@ -70,6 +86,7 @@ export class Game {
 
         const player = new Player(id, name, x, y);
         player.ws = ws;
+        player.xp = 0; // Initialize XP
 
         this.players.set(id, player);
         return player;

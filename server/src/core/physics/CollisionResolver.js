@@ -8,6 +8,8 @@ export class CollisionResolver {
 
     update() {
         this.checkProjectilePlayerCollisions();
+        this.checkProjectileObstacleCollisions();
+        this.checkPlayerObstacleCollisions();
     }
 
     checkProjectilePlayerCollisions() {
@@ -37,6 +39,55 @@ export class CollisionResolver {
                     if (isDead) {
                         this.game.handlePlayerDeath(playerId, projectile.ownerId);
                     }
+                }
+            });
+        });
+    }
+
+    checkProjectileObstacleCollisions() {
+        const projectiles = this.game.projectiles;
+        const obstacles = this.game.obstacleManager.obstacles;
+
+        projectiles.forEach((projectile) => {
+            if (!projectile.active) return;
+
+            obstacles.forEach((obstacle) => {
+                const dist = Physics.distance(
+                    projectile.x, projectile.y,
+                    obstacle.x, obstacle.y
+                );
+
+                if (dist < projectile.radius + obstacle.radius) {
+                    // Projectile hits obstacle
+                    projectile.active = false;
+                }
+            });
+        });
+    }
+
+    checkPlayerObstacleCollisions() {
+        const players = this.game.players;
+        const obstacles = this.game.obstacleManager.obstacles;
+
+        players.forEach((player) => {
+            obstacles.forEach((obstacle) => {
+                const dist = Physics.distance(
+                    player.x, player.y,
+                    obstacle.x, obstacle.y
+                );
+
+                const minDist = player.radius + obstacle.radius;
+                if (dist < minDist) {
+                    // Push player out of obstacle
+                    const angle = Physics.angleBetween(obstacle.x, obstacle.y, player.x, player.y);
+                    const overlap = minDist - dist;
+
+                    player.x += Math.cos(angle) * overlap;
+                    player.y += Math.sin(angle) * overlap;
+
+                    // Reduce velocity on collision
+                    player.vx *= 0.5;
+                    player.vy *= 0.5;
                 }
             });
         });
