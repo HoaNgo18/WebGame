@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { MAP_SIZE } from 'shared/constants';
+import { MAP_SIZE, PROJECTILE_RADIUS } from 'shared/constants';
+import { PacketType } from 'shared/packetTypes';
 import { socketManager } from '../../network/SocketManager';
 import { InputManager } from '../InputManager';
 import { ClientPlayer } from '../entities/ClientPlayer';
@@ -8,6 +9,7 @@ export class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
         this.players = new Map();
+        this.projectiles = new Map();
         this.localPlayerId = null;
         this.inputManager = null;
         this.connected = false;
@@ -27,6 +29,13 @@ export class GameScene extends Phaser.Scene {
         // Setup input
         this.inputManager = new InputManager(this);
         this.inputManager.setup();
+
+        // Setup mouse click for shooting
+        this.input.on('pointerdown', () => {
+            if (this.connected) {
+                socketManager.send(PacketType.ATTACK);
+            }
+        });
 
         // Connect to server
         this.connectToServer();
@@ -65,10 +74,45 @@ export class GameScene extends Phaser.Scene {
     }
 
     onUpdate(data) {
+        // Update players
         data.players.forEach(playerData => {
             const player = this.players.get(playerData.id);
             if (player) {
                 player.update(playerData);
+            } else {
+                this.createPlayer(playerData);
+            }
+        });
+
+        // Update projectiles
+        this.updateProjectiles(data.projectiles || []);
+    }
+
+    updateProjectiles(projectilesData) {
+        const activeIds = new Set();
+
+        projectilesData.forEach(data => {
+            activeIds.add(data.id);
+
+            if (this.projectiles.has(data.id)) {
+                // Update existing projectile
+                const proj = this.projectiles.get(data.id);
+                proj.x = data.x;
+                proj.y = data.y;
+            } else {
+                // Create new projectile
+                const color = data.color || 0x00E5FF;
+                const proj = this.add.circle(data.x, data.y, PROJECTILE_RADIUS, color);
+                proj.setDepth(5);
+                this.projectiles.set(data.id, proj);
+            }
+        });
+
+        // Remove old projectiles
+        this.projectiles.forEach((proj, id) => {
+            if (!activeIds.has(id)) {
+                proj.destroy();
+                this.projectiles.delete(id);
             }
         });
     }

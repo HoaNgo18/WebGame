@@ -50,6 +50,10 @@ export class Server {
                 case PacketType.INPUT:
                     this.game.handleInput(playerId, packet.input);
                     break;
+
+                case PacketType.ATTACK:
+                    this.game.handleAttack(playerId);
+                    break;
             }
         } catch (err) {
             console.error('Error parsing message:', err);
