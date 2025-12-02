@@ -232,11 +232,16 @@ export class EntityManager {
         obstaclesData.forEach(obs => {
             const spriteKey = obs.sprite || 'meteorBrown_med1';
             const meteor = this.scene.add.sprite(obs.x, obs.y, spriteKey);
-            const scale = obs.width / 90;
-            meteor.setScale(scale);
+
+            // Use setDisplaySize to exactly match server hitbox dimensions
+            // This ensures visual matches physics regardless of original sprite size
+            const visualSize = obs.radius * 2; // Diameter = radius * 2
+            meteor.setDisplaySize(visualSize, visualSize);
             meteor.setRotation(Phaser.Math.RND.rotation());
 
-            const duration = Phaser.Math.RND.between(20000, 60000) * (scale > 1.5 ? 3 : 1);
+            // Slower rotation for larger meteors
+            const sizeRatio = visualSize / 100;
+            const duration = Phaser.Math.RND.between(20000, 60000) * (sizeRatio > 1 ? 2 : 1);
             this.scene.tweens.add({
                 targets: meteor,
                 angle: Math.random() > 0.5 ? 360 : -360,

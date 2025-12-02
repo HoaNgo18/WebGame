@@ -57,18 +57,19 @@ export class WorldManager {
     }
 
     initObstacles() {
+        // User-specified sizes: small=10, med=25, big=50 (radius = visual/2)
         const meteorSizes = {
-            tiny: { width: 50, height: 50, radius: 25 },
-            small: { width: 80, height: 90, radius: 40 },
-            med: { width: 90, height: 120, radius: 60 },
-            big: { width: 120, height: 150, radius: 90 }
+            small: { width: 20, height: 20, radius: 10 },   // Visual: 20x20
+            med: { width: 50, height: 50, radius: 25 },     // Visual: 50x50
+            big: { width: 100, height: 100, radius: 50 },    // Visual: 100x100
+            super: { width: 200, height: 200, radius: 100 }  // Visual: 200x200
         };
         const meteorSprites = {
             small: ['meteorBrown_small1', 'meteorBrown_small2', 'meteorGrey_small1', 'meteorGrey_small2'],
             med: ['meteorBrown_med1', 'meteorBrown_med3', 'meteorGrey_med1', 'meteorGrey_med2'],
             big: ['meteorBrown_big1', 'meteorBrown_big2', 'meteorBrown_big3', 'meteorBrown_big4',
-                'meteorGrey_big1', 'meteorGrey_big2', 'meteorGrey_big3', 'meteorGrey_big4',
-                'spaceMeteors_001', 'spaceMeteors_002', 'spaceMeteors_003', 'spaceMeteors_004']
+                'meteorGrey_big1', 'meteorGrey_big2', 'meteorGrey_big3', 'meteorGrey_big4'],
+            super: ['spaceMeteors_001', 'spaceMeteors_002', 'spaceMeteors_003', 'spaceMeteors_004']
         };
 
         let spawned = 0;
@@ -78,11 +79,13 @@ export class WorldManager {
         while (spawned < OBSTACLE_COUNT && attempts < maxAttempts) {
             attempts++;
 
+            // Balanced spawn ratio for better visual variety
             const rand = Math.random();
             let randomSize;
-            if (rand < 0.3) randomSize = 'big';
-            else if (rand < 0.7) randomSize = 'med';
-            else randomSize = 'small';
+            if (rand < 0.25) randomSize = 'big';        // 25% big (100px)
+            else if (rand < 0.65) randomSize = 'med';   // 40% med (50px)
+            else if (rand < 0.85) randomSize = 'small'; // 20% small (20px)
+            else randomSize = 'super';                 // 15% super (200px)
 
             const sizeData = meteorSizes[randomSize];
             const max = MAP_SIZE / 2 - Math.max(sizeData.width, sizeData.height) / 2;
