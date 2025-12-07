@@ -3,6 +3,8 @@ export const PacketType = {
     JOIN: 'join',
     INPUT: 'input',
     ATTACK: 'attack',
+    SELECT_SLOT: 'select_slot',
+    USE_ITEM: 'use_item',
 
     // Server -> Client
     INIT: 'init',

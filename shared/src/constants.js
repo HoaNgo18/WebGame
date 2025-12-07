@@ -21,6 +21,20 @@ export const WEAPON_STATS = {
         speed: 600,
         range: 500,
         color: 0x00E5FF
+    },
+    RED: {
+        cooldown: 1000,
+        damage: 3,
+        speed: 400,
+        range: 800,
+        color: 0xFF0000
+    },
+    GREEN: {
+        cooldown: 100,
+        damage: 0.5,
+        speed: 800,
+        range: 400,
+        color: 0x00FF00
     }
 };
 
@@ -40,3 +54,97 @@ export const OBSTACLE_RADIUS_MAX = 120;
 // Nebula (Visual decoration)
 export const NEBULA_COUNT = 15;
 export const NEBULA_RADIUS = 70;
+
+// Chest
+export const CHEST_COUNT = 15;
+export const CHEST_RADIUS = 25;
+export const CHEST_HP = 3;
+
+// Item Types
+export const ITEM_TYPES = {
+    HEALTH_PACK: 'HEALTH_PACK',
+    SHIELD: 'SHIELD',
+    SPEED_BOOST: 'SPEED_BOOST',
+    BOMB: 'BOMB',
+    WEAPON_BLUE: 'WEAPON_BLUE',
+    WEAPON_RED: 'WEAPON_RED',
+    WEAPON_GREEN: 'WEAPON_GREEN',
+    COIN_BRONZE: 'COIN_BRONZE',
+    COIN_SILVER: 'COIN_SILVER',
+    COIN_GOLD: 'COIN_GOLD',
+};
+
+export const ITEM_RADIUS = 15;
+
+export const ITEM_CONFIG = {
+    [ITEM_TYPES.HEALTH_PACK]: {
+        name: 'Health Pack',
+        description: '+1 Life',
+        effect: { type: 'heal', value: 1 },
+        glowColor: 0x00FF00,
+        dropChance: 0.15
+    },
+    [ITEM_TYPES.SHIELD]: {
+        name: 'Energy Shield',
+        description: 'Invulnerability 5s',
+        effect: { type: 'shield', duration: 5000 },
+        glowColor: 0xFFD700,
+        dropChance: 0.20
+    },
+    [ITEM_TYPES.SPEED_BOOST]: {
+        name: 'Speed Boost',
+        description: 'x2 Speed for 5s',
+        effect: { type: 'speed', multiplier: 2.0, duration: 5000 },
+        glowColor: 0x00FFFF,
+        dropChance: 0.20
+    },
+    [ITEM_TYPES.BOMB]: {
+        name: 'Space Mine',
+        description: 'Place a bomb',
+        effect: { type: 'plant_bomb', damage: 3, radius: 100 },
+        glowColor: 0xFF0000,
+        dropChance: 0.20
+    },
+    [ITEM_TYPES.WEAPON_BLUE]: {
+        name: 'Plasma Blaster',
+        description: 'Balanced weapon',
+        effect: { type: 'weapon', weaponType: 'BLUE' },
+        glowColor: 0x0000FF,
+        dropChance: 0.20
+    },
+    [ITEM_TYPES.WEAPON_RED]: {
+        name: 'Heavy Cannon',
+        description: 'High damage, slow',
+        effect: { type: 'weapon', weaponType: 'RED' },
+        glowColor: 0xFF0000,
+        dropChance: 0.15
+    },
+    [ITEM_TYPES.WEAPON_GREEN]: {
+        name: 'Rapid Laser',
+        description: 'Fast fire, low damage',
+        effect: { type: 'weapon', weaponType: 'GREEN' },
+        glowColor: 0x00FF00,
+        dropChance: 0.15
+    },
+    [ITEM_TYPES.COIN_BRONZE]: {
+        name: 'Bronze Coin',
+        description: '+1 Coin',
+        effect: { type: 'coin', value: 1 },
+        glowColor: 0xCD7F32,
+        dropChance: 0.20
+    },
+    [ITEM_TYPES.COIN_SILVER]: {
+        name: 'Silver Coin',
+        description: '+3 Coins',
+        effect: { type: 'coin', value: 3 },
+        glowColor: 0xC0C0C0,
+        dropChance: 0.15
+    },
+    [ITEM_TYPES.COIN_GOLD]: {
+        name: 'Gold Coin',
+        description: '+5 Coins',
+        effect: { type: 'coin', value: 5 },
+        glowColor: 0xFFD700,
+        dropChance: 0.10
+    }
+};

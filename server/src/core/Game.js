@@ -5,6 +5,7 @@ import { Projectile } from '../entities/Projectile.js';
 import { CollisionResolver } from './physics/CollisionResolver.js';
 import { FoodManager } from './managers/FoodManager.js';
 import { ObstacleManager } from './managers/ObstacleManager.js';
+import { ChestManager } from './managers/ChestManager.js';
 
 export class Game {
     constructor(server) {
@@ -18,6 +19,7 @@ export class Game {
         // Managers
         this.foodManager = new FoodManager(this);
         this.obstacleManager = new ObstacleManager(this);
+        this.chestManager = new ChestManager(this);
         this.collisionResolver = new CollisionResolver(this);
     }
 
@@ -25,6 +27,7 @@ export class Game {
         // Initialize managers
         this.foodManager.init();
         this.obstacleManager.init();
+        this.chestManager.init();
 
         const tickTime = 1000 / TICK_RATE;
         this.tickInterval = setInterval(() => this.update(), tickTime);
@@ -49,6 +52,9 @@ export class Game {
 
             // Check food collision
             this.foodManager.checkCollision(player);
+
+            // Check item collision
+            this.chestManager.checkItemCollision(player);
         });
 
         // Update all projectiles
@@ -58,6 +64,9 @@ export class Game {
                 this.projectiles.delete(id);
             }
         });
+
+        // Update managers
+        this.chestManager.update(deltaTime);
 
         // Check collisions
         this.collisionResolver.update();
@@ -74,6 +83,8 @@ export class Game {
             foods: this.foodManager.getFoodsData(),
             obstacles: this.obstacleManager.getObstaclesData(),
             nebulas: this.obstacleManager.getNebulasData(),
+            chests: this.chestManager.getChestsData(),
+            items: this.chestManager.getItemsData(),
             timestamp: Date.now()
         };
 
@@ -86,7 +97,6 @@ export class Game {
 
         const player = new Player(id, name, x, y);
         player.ws = ws;
-        player.xp = 0; // Initialize XP
 
         this.players.set(id, player);
         return player;
@@ -107,12 +117,14 @@ export class Game {
         const player = this.players.get(playerId);
         if (!player) return;
 
+        // Use current weapon
+        const weaponType = player.currentWeapon || 'BLUE';
+        const weaponStats = WEAPON_STATS[weaponType];
+
         // Check cooldown
         const now = Date.now();
-        const weaponStats = WEAPON_STATS.BLUE;
-
         if (player.lastAttack && now - player.lastAttack < weaponStats.cooldown) {
-            return; // Still on cooldown
+            return;
         }
 
         player.lastAttack = now;
@@ -128,15 +140,37 @@ export class Game {
             spawnX,
             spawnY,
             player.rotation,
-            'BLUE'
+            weaponType
         );
 
         this.projectiles.set(projectileId, projectile);
     }
 
+    handleSelectSlot(playerId, slot) {
+        const player = this.players.get(playerId);
+        if (player) {
+            player.selectSlot(slot);
+        }
+    }
+
+    handleUseItem(playerId) {
+        const player = this.players.get(playerId);
+        if (!player) return;
+
+        const effect = player.useItem();
+        if (effect && effect.type === 'plant_bomb') {
+            // TODO: Implement bomb planting in future
+        }
+    }
+
     handlePlayerDeath(playerId, killerId) {
         const player = this.players.get(playerId);
         if (!player) return;
+
+        const killer = this.players.get(killerId);
+        if (killer) {
+            killer.kills++;
+        }
 
         // Broadcast death
         this.server.broadcast({
@@ -151,6 +185,8 @@ export class Game {
         player.y = Math.random() * (MAP_SIZE - 200) + 100;
         player.vx = 0;
         player.vy = 0;
+        player.inventory = [null, null, null, null];
+        player.currentWeapon = 'BLUE';
     }
 
     getPlayer(id) {

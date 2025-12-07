@@ -54,6 +54,14 @@ export class Server {
                 case PacketType.ATTACK:
                     this.game.handleAttack(playerId);
                     break;
+
+                case PacketType.SELECT_SLOT:
+                    this.game.handleSelectSlot(playerId, packet.slot);
+                    break;
+
+                case PacketType.USE_ITEM:
+                    this.game.handleUseItem(playerId);
+                    break;
             }
         } catch (err) {
             console.error('Error parsing message:', err);
