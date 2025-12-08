@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import { socketManager } from '../network/SocketManager';
 
 export class InputManager {
@@ -17,8 +18,24 @@ export class InputManager {
             upArrow: Phaser.Input.Keyboard.KeyCodes.UP,
             downArrow: Phaser.Input.Keyboard.KeyCodes.DOWN,
             leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
-            rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT
+            rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+            // Inventory slots
+            slot1: Phaser.Input.Keyboard.KeyCodes.ONE,
+            slot2: Phaser.Input.Keyboard.KeyCodes.TWO,
+            slot3: Phaser.Input.Keyboard.KeyCodes.THREE,
+            slot4: Phaser.Input.Keyboard.KeyCodes.FOUR,
+            // Use item
+            useItem: Phaser.Input.Keyboard.KeyCodes.E
         });
+
+        // Inventory slot selection
+        this.keys.slot1.on('down', () => socketManager.selectSlot(0));
+        this.keys.slot2.on('down', () => socketManager.selectSlot(1));
+        this.keys.slot3.on('down', () => socketManager.selectSlot(2));
+        this.keys.slot4.on('down', () => socketManager.selectSlot(3));
+
+        // Use item with E key
+        this.keys.useItem.on('down', () => socketManager.useItem());
     }
 
     update() {
@@ -47,11 +64,6 @@ export class InputManager {
     }
 
     destroy() {
-        if (this.keys) {
-            this.scene.input.keyboard.removeKey(this.keys.up);
-            this.scene.input.keyboard.removeKey(this.keys.down);
-            this.scene.input.keyboard.removeKey(this.keys.left);
-            this.scene.input.keyboard.removeKey(this.keys.right);
-        }
+        // Clean up
     }
 }

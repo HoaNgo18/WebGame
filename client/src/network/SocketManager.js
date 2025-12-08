@@ -56,6 +56,10 @@ class SocketManager {
                 this.emit('playerLeave', packet.playerId);
                 break;
 
+            case PacketType.PLAYER_DIED:
+                this.emit('playerDied', packet);
+                break;
+
             default:
                 console.log('Unknown packet type:', packet.type);
         }
@@ -73,6 +77,18 @@ class SocketManager {
 
     sendInput(input) {
         this.send(PacketType.INPUT, { input });
+    }
+
+    attack() {
+        this.send(PacketType.ATTACK);
+    }
+
+    selectSlot(slot) {
+        this.send(PacketType.SELECT_SLOT, { slot });
+    }
+
+    useItem() {
+        this.send(PacketType.USE_ITEM);
     }
 
     on(event, callback) {
