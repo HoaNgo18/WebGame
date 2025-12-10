@@ -1,0 +1,132 @@
+.death-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 250;
+    animation: death-fade-in 0.5s ease;
+}
+
+@keyframes death-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.death-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, rgba(100, 0, 0, 0.9) 100%);
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+
+    0%,
+    100% {
+        background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, rgba(100, 0, 0, 0.9) 100%);
+    }
+
+    50% {
+        background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, rgba(150, 0, 0, 0.9) 100%);
+    }
+}
+
+.death-content {
+    text-align: center;
+    z-index: 10;
+    animation: death-scale-in 0.5s ease;
+}
+
+@keyframes death-scale-in {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.death-icon {
+    font-size: 80px;
+    margin-bottom: 20px;
+    animation: skull-shake 0.5s ease;
+}
+
+@keyframes skull-shake {
+
+    0%,
+    100% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(-10deg);
+    }
+
+    75% {
+        transform: rotate(10deg);
+    }
+}
+
+.death-title {
+    color: #ff4444;
+    font-size: 64px;
+    font-weight: bold;
+    text-shadow: 0 0 30px rgba(255, 68, 68, 0.8),
+        0 0 60px rgba(255, 68, 68, 0.4);
+    letter-spacing: 10px;
+    margin-bottom: 20px;
+}
+
+.killer-info {
+    color: #aaa;
+    font-size: 18px;
+    margin-bottom: 40px;
+}
+
+.killer-name {
+    color: #ff6666;
+    font-weight: bold;
+}
+
+.respawn-button {
+    background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+    color: #fff;
+    border: none;
+    padding: 15px 40px;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    box-shadow: 0 5px 30px rgba(255, 68, 68, 0.4);
+}
+
+.respawn-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 40px rgba(255, 68, 68, 0.6);
+}
+
+.respawn-hint {
+    color: #666;
+    font-size: 12px;
+    margin-top: 20px;
+    letter-spacing: 2px;
+}
