@@ -148,3 +148,45 @@ export const ITEM_CONFIG = {
         dropChance: 0.10
     }
 };
+
+// Arena Mode Config
+export const ARENA_CONFIG = {
+    // Lobby
+    MIN_PLAYERS: 2,
+    MAX_PLAYERS: 20,
+    LOBBY_COUNTDOWN: 30, // seconds
+
+    // Game Duration
+    GAME_DURATION: 300, // 5 minutes
+
+    // Zone shrinking
+    ZONE_SHRINK_PHASES: [
+        { time: 0, radius: MAP_SIZE / 2, centerX: MAP_SIZE / 2, centerY: MAP_SIZE / 2 },
+        { time: 60, radius: MAP_SIZE * 0.4, centerX: MAP_SIZE / 2, centerY: MAP_SIZE / 2 },
+        { time: 120, radius: MAP_SIZE * 0.3, centerX: null, centerY: null }, // Random center
+        { time: 180, radius: MAP_SIZE * 0.2, centerX: null, centerY: null },
+        { time: 240, radius: MAP_SIZE * 0.1, centerX: null, centerY: null },
+        { time: 280, radius: 200, centerX: null, centerY: null }
+    ],
+    ZONE_SHRINK_SPEED: 50, // pixels per second
+    ZONE_DAMAGE: 1, // damage per second outside zone
+    ZONE_DAMAGE_INTERVAL: 1000, // ms
+
+    // Rewards
+    KILL_REWARD: 50, // XP
+    WIN_REWARD: 500, // XP
+    PLACEMENT_REWARDS: [500, 300, 200, 100, 50], // Top 5
+
+    // Visual
+    ZONE_COLOR: 0x4400FF,
+    DANGER_ZONE_COLOR: 0xFF0000
+};
+
+// Arena States
+export const ARENA_STATE = {
+    WAITING: 'waiting',
+    COUNTDOWN: 'countdown',
+    PLAYING: 'playing',
+    ENDING: 'ending'
+};
+
