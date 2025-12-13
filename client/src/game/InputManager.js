@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GameActions } from './GameActions';
+import { socket } from '../network/socket';
 
 export class InputManager {
     constructor(scene) {
@@ -27,13 +28,16 @@ export class InputManager {
     setupEventListeners() {
         // Mouse click -> Attack (via GameActions)
         this.scene.input.on('pointerdown', () => {
-            const myPlayer = this.scene.players[this.scene.socket?.myId];
+            const myPlayer = this.scene.players[socket.myId];
 
-            // Validate ability to shoot
-            const canShoot = myPlayer && !myPlayer.dead && (myPlayer.currentAmmo === undefined || myPlayer.currentAmmo > 0);
+            // Validate ability to shoot: must have player, not dead, and have ammo
+            const hasAmmo = myPlayer?.currentAmmo === undefined || myPlayer?.currentAmmo > 0;
+            const canShoot = myPlayer && !myPlayer.dead && hasAmmo;
+
+            console.log('[InputManager] Click - myId:', socket.myId, 'player:', !!myPlayer, 'dead:', myPlayer?.dead, 'ammo:', myPlayer?.currentAmmo, 'canShoot:', canShoot);
 
             if (canShoot) {
-                // Play shoot sound
+                // Play shoot sound only when actually can shoot
                 if (this.scene.soundManager) {
                     const weaponType = myPlayer.weaponType || 'BLUE';
                     this.scene.soundManager.playShoot(weaponType);

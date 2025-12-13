@@ -61,16 +61,11 @@ export class BaseScene extends Phaser.Scene {
         const inputData = this.inputManager.getInputData();
         socket.send({ type: PacketType.INPUT, data: inputData });
 
-        // Update Engine Sound
+        // Update Engine Sound - only when moving forward (W/UP), not rotating
         if (this.soundManager && socket.myId && this.players[socket.myId]) {
-            const myPlayer = this.players[socket.myId];
-            // Check if moving (either by input or server state)
-            const isMoving = myPlayer.isMoving ||
-                this.inputManager.keys.W.isDown ||
-                this.inputManager.keys.A.isDown ||
-                this.inputManager.keys.S.isDown ||
-                this.inputManager.keys.D.isDown;
-            this.soundManager.updateEngine(isMoving);
+            // Only play engine sound when pressing W or UP (forward thrust)
+            const isThrusting = this.inputManager.keys.W.isDown || this.inputManager.keys.UP.isDown;
+            this.soundManager.updateEngine(isThrusting);
         }
     }
 

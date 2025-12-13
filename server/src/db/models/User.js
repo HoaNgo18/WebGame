@@ -53,6 +53,13 @@ const userSchema = new mongoose.Schema({
     // Inventory
     unlockedSkins: [{ type: String }],
 
+    // Sound Settings
+    soundSettings: {
+        masterVolume: { type: Number, default: 0.5 },
+        musicVolume: { type: Number, default: 0.5 },
+        sfxVolume: { type: Number, default: 0.7 }
+    },
+
     // Timestamps
     createdAt: { type: Date, default: Date.now },
     lastLogin: { type: Date, default: Date.now }
@@ -83,7 +90,8 @@ userSchema.methods.toPublicJSON = function () {
         avatar: this.avatar,
         skin: this.skin,
         stats: this.stats,
-        coins: this.coins
+        coins: this.coins,
+        soundSettings: this.soundSettings
     };
 };
 

@@ -493,48 +493,105 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                                     </select>
                                                 </div>
 
-                                                {/* Sound Settings - Cleaner UI */}
-                                                <div style={{ marginTop: '20px', padding: '15px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                {/* Sound Settings - 3 Level Volume Control */}
+                                                {(() => {
+                                                    // Load initial values from user (DB) or localStorage (guest)
+                                                    const getSavedSettings = () => {
+                                                        if (localUser && !localUser.isGuest && localUser.soundSettings) {
+                                                            return localUser.soundSettings;
+                                                        }
+                                                        const saved = localStorage.getItem('soundSettings');
+                                                        if (saved) {
+                                                            return JSON.parse(saved);
+                                                        }
+                                                        return { masterVolume: 0.5, musicVolume: 0.5, sfxVolume: 0.7 };
+                                                    };
 
-                                                    <div className="settings-row-inline" style={{ marginBottom: '15px', display: 'flex', alignItems: 'center' }}>
-                                                        <span className="settings-label" style={{ minWidth: '180px' }}>
-                                                            Master Volume <span style={{ color: '#FFD700', fontSize: '12px' }} id="master-volume-display">(50%)</span>
-                                                        </span>
-                                                        <input
-                                                            type="range"
-                                                            min="0"
-                                                            max="100"
-                                                            defaultValue="50"
-                                                            style={{ width: '33%', cursor: 'pointer', marginLeft: '10px' }}
-                                                            onChange={(e) => {
-                                                                const settings = JSON.parse(localStorage.getItem('soundSettings') || '{}');
-                                                                settings.masterVolume = e.target.value / 100;
-                                                                settings.enabled = true;
-                                                                localStorage.setItem('soundSettings', JSON.stringify(settings));
-                                                                document.getElementById('master-volume-display').textContent = `(${e.target.value}%)`;
-                                                            }}
-                                                        />
-                                                    </div>
+                                                    const savedSettings = getSavedSettings();
 
-                                                    <div className="settings-row-inline" style={{ display: 'flex', alignItems: 'center' }}>
-                                                        <span className="settings-label" style={{ minWidth: '180px' }}>
-                                                            SFX Volume <span style={{ color: '#FFD700', fontSize: '12px' }} id="sfx-volume-display">(70%)</span>
-                                                        </span>
-                                                        <input
-                                                            type="range"
-                                                            min="0"
-                                                            max="100"
-                                                            defaultValue="70"
-                                                            style={{ width: '33%', cursor: 'pointer', marginLeft: '10px' }}
-                                                            onChange={(e) => {
-                                                                const settings = JSON.parse(localStorage.getItem('soundSettings') || '{}');
-                                                                settings.sfxVolume = e.target.value / 100;
-                                                                localStorage.setItem('soundSettings', JSON.stringify(settings));
-                                                                document.getElementById('sfx-volume-display').textContent = `(${e.target.value}%)`;
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
+                                                    const handleVolumeChange = async (key, value) => {
+                                                        const newValue = value / 100;
+                                                        const settings = { ...savedSettings, [key]: newValue };
+
+                                                        // Always save to localStorage for immediate use
+                                                        localStorage.setItem('soundSettings', JSON.stringify(settings));
+
+                                                        // If registered user, also save to DB
+                                                        if (localUser && !localUser.isGuest) {
+                                                            try {
+                                                                const token = localStorage.getItem('game_token');
+                                                                await fetch(`${API_URL}/auth/sound-settings`, {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'Authorization': `Bearer ${token}`
+                                                                    },
+                                                                    body: JSON.stringify({ [key]: newValue })
+                                                                });
+                                                            } catch (err) {
+                                                                console.error('Failed to save sound settings to DB:', err);
+                                                            }
+                                                        }
+                                                    };
+
+                                                    return (
+                                                        <div style={{ marginTop: '20px', padding: '15px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                            {/* Master Volume */}
+                                                            <div className="settings-row-inline" style={{ marginBottom: '15px', display: 'flex', alignItems: 'center' }}>
+                                                                <span className="settings-label" style={{ minWidth: '180px' }}>
+                                                                    Master <span style={{ color: '#FFD700', fontSize: '12px' }} id="master-volume-display">({Math.round(savedSettings.masterVolume * 100)}%)</span>
+                                                                </span>
+                                                                <input
+                                                                    type="range"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    defaultValue={Math.round(savedSettings.masterVolume * 100)}
+                                                                    style={{ width: '33%', cursor: 'pointer', marginLeft: '10px' }}
+                                                                    onChange={(e) => {
+                                                                        handleVolumeChange('masterVolume', e.target.value);
+                                                                        document.getElementById('master-volume-display').textContent = `(${e.target.value}%)`;
+                                                                    }}
+                                                                />
+                                                            </div>
+
+                                                            {/* Music Volume */}
+                                                            <div className="settings-row-inline" style={{ marginBottom: '15px', display: 'flex', alignItems: 'center' }}>
+                                                                <span className="settings-label" style={{ minWidth: '180px' }}>
+                                                                    Music <span style={{ color: '#FFD700', fontSize: '12px' }} id="music-volume-display">({Math.round(savedSettings.musicVolume * 100)}%)</span>
+                                                                </span>
+                                                                <input
+                                                                    type="range"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    defaultValue={Math.round(savedSettings.musicVolume * 100)}
+                                                                    style={{ width: '33%', cursor: 'pointer', marginLeft: '10px' }}
+                                                                    onChange={(e) => {
+                                                                        handleVolumeChange('musicVolume', e.target.value);
+                                                                        document.getElementById('music-volume-display').textContent = `(${e.target.value}%)`;
+                                                                    }}
+                                                                />
+                                                            </div>
+
+                                                            {/* SFX Volume */}
+                                                            <div className="settings-row-inline" style={{ display: 'flex', alignItems: 'center' }}>
+                                                                <span className="settings-label" style={{ minWidth: '180px' }}>
+                                                                    SFX <span style={{ color: '#FFD700', fontSize: '12px' }} id="sfx-volume-display">({Math.round(savedSettings.sfxVolume * 100)}%)</span>
+                                                                </span>
+                                                                <input
+                                                                    type="range"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    defaultValue={Math.round(savedSettings.sfxVolume * 100)}
+                                                                    style={{ width: '33%', cursor: 'pointer', marginLeft: '10px' }}
+                                                                    onChange={(e) => {
+                                                                        handleVolumeChange('sfxVolume', e.target.value);
+                                                                        document.getElementById('sfx-volume-display').textContent = `(${e.target.value}%)`;
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     )}

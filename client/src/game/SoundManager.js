@@ -2,8 +2,9 @@
 export class SoundManager {
     constructor(scene) {
         this.scene = scene;
-        this.masterVolume = 0.5;
-        this.sfxVolume = 0.7;
+        this.masterVolume = 0.5;  // Controls all audio
+        this.musicVolume = 0.5;   // Controls BGM
+        this.sfxVolume = 0.7;     // Controls sound effects
         this.enabled = true;
         this.engineSound = null;
         this.bgm = null;
@@ -17,6 +18,7 @@ export class SoundManager {
         if (settings) {
             const parsed = JSON.parse(settings);
             this.masterVolume = parsed.masterVolume ?? 0.5;
+            this.musicVolume = parsed.musicVolume ?? 0.5;
             this.sfxVolume = parsed.sfxVolume ?? 0.7;
             this.enabled = parsed.enabled ?? true;
         }
@@ -26,6 +28,7 @@ export class SoundManager {
     saveSettings() {
         localStorage.setItem('soundSettings', JSON.stringify({
             masterVolume: this.masterVolume,
+            musicVolume: this.musicVolume,
             sfxVolume: this.sfxVolume,
             enabled: this.enabled
         }));
@@ -34,6 +37,11 @@ export class SoundManager {
 
     setMasterVolume(value) {
         this.masterVolume = Math.max(0, Math.min(1, value));
+        this.saveSettings();
+    }
+
+    setMusicVolume(value) {
+        this.musicVolume = Math.max(0, Math.min(1, value));
         this.saveSettings();
     }
 
@@ -55,21 +63,32 @@ export class SoundManager {
         this.saveSettings();
     }
 
-    getVolume() {
+    // Get effective SFX volume (master * sfx)
+    getSFXVolume() {
         return this.enabled ? this.masterVolume * this.sfxVolume : 0;
+    }
+
+    // Get effective Music volume (master * music)
+    getMusicVolume() {
+        return this.enabled ? this.masterVolume * this.musicVolume : 0;
+    }
+
+    // Legacy getVolume() - returns SFX volume for backwards compatibility
+    getVolume() {
+        return this.getSFXVolume();
     }
 
     updateVolumes() {
         if (!this.scene) return;
 
-        // Update BGM volume
+        // Update BGM volume (Master * Music)
         if (this.bgm) {
-            this.bgm.setVolume(this.enabled ? this.masterVolume * 0.5 : 0); // BGM usually quieter
+            this.bgm.setVolume(this.getMusicVolume());
         }
 
-        // Update Engine volume
+        // Update Engine volume (Master * SFX, slightly quieter)
         if (this.engineSound) {
-            this.engineSound.setVolume(this.getVolume() * 0.5); // Engine quieter
+            this.engineSound.setVolume(this.getSFXVolume() * 0.5);
         }
     }
 
@@ -87,8 +106,9 @@ export class SoundManager {
     // --- Specific Sound Methods ---
 
     playShoot(weaponType = 'BLUE') {
+        console.log('[SoundManager] playShoot called, volume:', this.getSFXVolume());
         const pitch = 0.9 + Math.random() * 0.2; // Random pitch 0.9-1.1
-        this.playSound('laser', { detune: (pitch - 1) * 1000, volume: 0.4 });
+        this.playSound('laser', { detune: (pitch - 1) * 1000, volume: 0.6 });
     }
 
     playHit() {
@@ -97,7 +117,7 @@ export class SoundManager {
     }
 
     playExplosion() {
-        this.playSound('bomb', { volume: 0.8 });
+        this.playSound('bomb', { volume: 0.4 });
     }
 
     playPickup() {
@@ -145,7 +165,7 @@ export class SoundManager {
 
         this.bgm = this.scene.sound.add('bgm', {
             loop: true,
-            volume: this.enabled ? this.masterVolume * 0.5 : 0
+            volume: this.getMusicVolume()
         });
         this.bgm.play();
     }
@@ -153,9 +173,10 @@ export class SoundManager {
     startEngine() {
         if (this.engineSound) return;
 
+        console.log('[SoundManager] startEngine called');
         this.engineSound = this.scene.sound.add('engine', {
             loop: true,
-            volume: 0 // Start silent
+            volume: 0 // Start silent, will be updated by updateEngine
         });
         this.engineSound.play();
     }
@@ -168,7 +189,8 @@ export class SoundManager {
             return;
         }
 
-        const targetVolume = isMoving ? (this.getVolume() * 0.5) : 0;
+        // Increased engine volume (was 0.5, now 0.8)
+        const targetVolume = isMoving ? (this.getSFXVolume() * 0.8) : 0;
 
         // Simple lerp for smooth fade
         const current = this.engineSound.volume;

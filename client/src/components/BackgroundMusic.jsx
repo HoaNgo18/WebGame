@@ -9,10 +9,10 @@ const BackgroundMusic = () => {
         try {
             const settings = JSON.parse(localStorage.getItem('soundSettings') || '{}');
             const master = settings.masterVolume ?? 0.5;
-            // Use master volume for BGM, maybe 50% of it since BGM shouldn't be too loud
-            // Also check 'enabled'
+            const music = settings.musicVolume ?? 0.5;
             const enabled = settings.enabled ?? true;
-            return enabled ? master * 0.5 : 0;
+            // Volume = Master * Music
+            return enabled ? master * music : 0;
         } catch (e) {
             return 0.25;
         }

@@ -110,7 +110,8 @@ router.post('/login', async (req, res) => {
                 equippedSkin: user.equippedSkin || 'default',
                 arenaWins: user.arenaWins || 0,
                 arenaTop2: user.arenaTop2 || 0,
-                arenaTop3: user.arenaTop3 || 0
+                arenaTop3: user.arenaTop3 || 0,
+                soundSettings: user.soundSettings || { masterVolume: 0.5, musicVolume: 0.5, sfxVolume: 0.7 }
             }
         });
     } catch (error) {
@@ -237,6 +238,42 @@ router.delete('/delete-account', async (req, res) => {
     } catch (error) {
         console.error('Delete account error:', error);
         res.status(500).json({ error: 'Failed to delete account' });
+    }
+});
+
+// Update sound settings
+router.post('/sound-settings', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        const user = await User.findById(decoded.id);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const { masterVolume, musicVolume, sfxVolume } = req.body;
+
+        // Initialize soundSettings if not exists
+        if (!user.soundSettings) {
+            user.soundSettings = { masterVolume: 0.5, musicVolume: 0.5, sfxVolume: 0.7 };
+        }
+
+        // Update only provided values
+        if (masterVolume !== undefined) user.soundSettings.masterVolume = Math.max(0, Math.min(1, masterVolume));
+        if (musicVolume !== undefined) user.soundSettings.musicVolume = Math.max(0, Math.min(1, musicVolume));
+        if (sfxVolume !== undefined) user.soundSettings.sfxVolume = Math.max(0, Math.min(1, sfxVolume));
+
+        await user.save();
+
+        res.json({ success: true, soundSettings: user.soundSettings });
+    } catch (error) {
+        console.error('Sound settings error:', error);
+        res.status(500).json({ error: 'Failed to update sound settings' });
     }
 });
 

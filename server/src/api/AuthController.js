@@ -125,6 +125,29 @@ export class AuthController {
             console.error('Stats update error:', error);
         }
     }
+
+    static async updateSoundSettings(req, res) {
+        try {
+            const { masterVolume, musicVolume, sfxVolume } = req.body;
+
+            const user = await User.findById(req.userId);
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            // Update sound settings
+            if (masterVolume !== undefined) user.soundSettings.masterVolume = Math.max(0, Math.min(1, masterVolume));
+            if (musicVolume !== undefined) user.soundSettings.musicVolume = Math.max(0, Math.min(1, musicVolume));
+            if (sfxVolume !== undefined) user.soundSettings.sfxVolume = Math.max(0, Math.min(1, sfxVolume));
+
+            await user.save();
+
+            res.json({ soundSettings: user.soundSettings });
+        } catch (error) {
+            console.error('Sound settings update error:', error);
+            res.status(500).json({ error: 'Server error' });
+        }
+    }
 }
 
 // Auth middleware
