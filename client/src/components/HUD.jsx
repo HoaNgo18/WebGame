@@ -27,6 +27,7 @@ const HUD = ({ isArena = false }) => {
         enemies: [],
         items: [],
         stations: [],
+        wormholes: [],
         zone: null
     });
 
@@ -120,8 +121,16 @@ const HUD = ({ isArena = false }) => {
                     ? Object.values(scene.entityManager.items).map(i => ({ x: i.x, y: i.y, id: i.id }))
                     : [];
 
+                // Only show STATION type chests (filter out normal chests)
                 const stations = scene.entityManager?.chests
-                    ? Object.values(scene.entityManager.chests).map(c => ({ x: c.x, y: c.y, id: c.id }))
+                    ? Object.entries(scene.entityManager.chests)
+                        .filter(([id, c]) => id.includes('station'))
+                        .map(([id, c]) => ({ x: c.x, y: c.y, id }))
+                    : [];
+
+                // Show wormholes on minimap
+                const wormholes = scene.entityManager?.wormholes
+                    ? scene.entityManager.wormholes.map((w, i) => ({ x: w.x, y: w.y, id: `wormhole_${i}` }))
                     : [];
 
                 const zone = scene.zone ? { x: scene.zone.x, y: scene.zone.y, radius: scene.zone.radius } : null;
@@ -130,6 +139,7 @@ const HUD = ({ isArena = false }) => {
                     enemies,
                     items,
                     stations,
+                    wormholes,
                     zone
                 });
             }
@@ -294,6 +304,12 @@ const HUD = ({ isArena = false }) => {
                 {minimapData.stations.map(s => {
                     const pos = worldToMinimap(s.x, s.y);
                     return <div key={s.id} className="minimap-station" style={{ left: pos.left, top: pos.top }} />;
+                })}
+
+                {/* Wormholes */}
+                {minimapData.wormholes.map(w => {
+                    const pos = worldToMinimap(w.x, w.y);
+                    return <div key={w.id} className="minimap-wormhole" style={{ left: pos.left, top: pos.top }} />;
                 })}
 
                 {/* Zone (Arena) */}

@@ -1,6 +1,9 @@
 // server/src/core/physics/CollisionResolver.js
 import { PacketType } from 'shared/packetTypes';
-import { XP_PER_FOOD, CHEST_TYPES, ITEM_RADIUS, SHIP_RADIUS } from 'shared/constants';
+import {
+    XP_PER_FOOD, CHEST_TYPES, ITEM_RADIUS, SHIP_RADIUS,
+    WORMHOLE_CORE_RADIUS, WORMHOLE_PULL_FORCE, WORMHOLE_DRAG, WORMHOLE_TELEPORT_COOLDOWN
+} from 'shared/constants';
 
 export class CollisionResolver {
     constructor(game) {
@@ -187,5 +190,80 @@ export class CollisionResolver {
         } else if (!player.isBot) {
             this.game.savePlayerScore(player);
         }
+    }
+
+    // --- WORMHOLE PHYSICS ---
+
+    applyWormholePull(player, wormhole, dt) {
+        const dx = wormhole.x - player.x;
+        const dy = wormhole.y - player.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < 1) return; // Prevent division by zero
+
+        // Direction vector towards center (normalized)
+        const dirX = dx / dist;
+        const dirY = dy / dist;
+
+        // Calculate pull force (stronger closer to center)
+        const distanceRatio = 1 - (dist / wormhole.pullRadius); // 0 at edge, 1 at center
+
+        // Check player's current speed and input
+        const vx = player.vx || 0;
+        const vy = player.vy || 0;
+        const currentSpeed = Math.hypot(vx, vy);
+        const hasInput = player.input && (player.input.up || player.input.down || player.input.left || player.input.right);
+
+        // If no input or barely moving, apply strong constant pull towards center
+        if (!hasInput || currentSpeed < 50) {
+            // Strong constant pull - directly move player towards center
+            const pullSpeed = WORMHOLE_PULL_FORCE * distanceRatio * 3 * dt;
+            player.vx = vx + dirX * pullSpeed;
+            player.vy = vy + dirY * pullSpeed;
+        } else {
+            // Player is actively moving - apply weaker pull
+            const pullStrength = WORMHOLE_PULL_FORCE * distanceRatio * dt;
+            player.vx = vx + dirX * pullStrength;
+            player.vy = vy + dirY * pullStrength;
+
+            // Check if player is trying to escape (velocity pointing away from center)
+            const dotProduct = player.vx * dirX + player.vy * dirY;
+            if (dotProduct < 0) {
+                // Player is trying to escape - apply drag
+                const scaledDrag = WORMHOLE_DRAG + (1 - WORMHOLE_DRAG) * (1 - distanceRatio);
+                player.vx *= scaledDrag;
+                player.vy *= scaledDrag;
+            }
+        }
+    }
+
+    applyWormholeDrag(player, dt) {
+        // Now handled inside applyWormholePull based on direction
+        // This method kept for backwards compatibility but does nothing
+    }
+
+    teleportPlayer(player, targetWormhole) {
+        // Check cooldown
+        const now = Date.now();
+        if (player.lastTeleportTime && (now - player.lastTeleportTime) < WORMHOLE_TELEPORT_COOLDOWN) {
+            return false; // Still on cooldown
+        }
+
+        // Teleport to target wormhole (offset slightly to avoid immediate re-teleport)
+        const offsetDist = targetWormhole.radius * 0.8;
+        const angle = Math.random() * Math.PI * 2;
+
+        player.x = targetWormhole.x + Math.cos(angle) * offsetDist;
+        player.y = targetWormhole.y + Math.sin(angle) * offsetDist;
+
+        // Reset velocity
+        player.vx = 0;
+        player.vy = 0;
+
+        // Set cooldown
+        player.lastTeleportTime = now;
+
+        console.log(`[Wormhole] Player ${player.name} teleported to ${targetWormhole.id}`);
+        return true;
     }
 }

@@ -221,7 +221,8 @@
     height: 5px;
     background-color: #00E5FF;
     border: 1px solid #FFF;
-    border-radius: 2px; /* Square for stations */
+    border-radius: 2px;
+    /* Square for stations */
     transform: translate(-50%, -50%);
 }
 
@@ -232,6 +233,17 @@
     border-radius: 50%;
     transform: translate(-50%, -50%);
     pointer-events: none;
+}
+
+.minimap-wormhole {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background-color: #8B00FF;
+    border: 1px solid #FFF;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 4px #8B00FF;
 }
 
 /* Notification */

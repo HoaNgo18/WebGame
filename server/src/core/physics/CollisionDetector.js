@@ -1,6 +1,6 @@
 // server/src/core/physics/CollisionDetector.js
 import { circleCollision, circleRotatedRectCollision, distance, getPushVectorFromRotatedRect } from 'shared/utils';
-import { SHIP_RADIUS, FOOD_RADIUS, ITEM_RADIUS, BOMB_STATS, CHEST_TYPES } from 'shared/constants';
+import { SHIP_RADIUS, FOOD_RADIUS, ITEM_RADIUS, BOMB_STATS, CHEST_TYPES, WORMHOLE_CORE_RADIUS } from 'shared/constants';
 
 export class CollisionDetector {
     constructor(game, resolver) {
@@ -53,6 +53,7 @@ export class CollisionDetector {
         const chests = this.game.world.chests;
         const items = this.game.world.items;
         const nebulas = this.game.world.nebulas;
+        const wormholes = this.game.world.wormholes;
 
         this.game.players.forEach(player => {
             if (player.dead) return;
@@ -63,6 +64,7 @@ export class CollisionDetector {
             this.checkPlayerVsChests(player, chests);
             this.checkPlayerVsItems(player, items);
             this.checkPlayerVsNebulas(player, nebulas);
+            this.checkPlayerVsWormholes(player, wormholes);
         });
     }
 
@@ -238,7 +240,8 @@ export class CollisionDetector {
     checkPlayerVsNebulas(player, nebulas) {
         let insideNebula = false;
         for (const nebula of nebulas) {
-            if (distance(player.x, player.y, nebula.x, nebula.y) < nebula.radius - 10) {
+            // Increased invisibility range (radius + 10 instead of radius - 10)
+            if (distance(player.x, player.y, nebula.x, nebula.y) < nebula.radius + 10) {
                 insideNebula = true;
                 break;
             }
@@ -246,5 +249,33 @@ export class CollisionDetector {
         const now = Date.now();
         const isItemInvisible = player.invisibleEndTime && player.invisibleEndTime > now;
         player.isHidden = insideNebula || isItemInvisible;
+    }
+
+    checkPlayerVsWormholes(player, wormholes) {
+        if (!wormholes || wormholes.length === 0) return;
+
+        const dt = 1 / 60; // Assume 60 FPS physics
+
+        for (const wormhole of wormholes) {
+            const dist = distance(player.x, player.y, wormhole.x, wormhole.y);
+
+            // Inside pull radius - apply gravitational pull
+            if (dist < wormhole.pullRadius) {
+                // Apply pull force towards center
+                this.resolver.applyWormholePull(player, wormhole, dt);
+
+                // Apply drag when trying to escape
+                this.resolver.applyWormholeDrag(player, dt);
+
+                // Inside core radius - teleport!
+                if (dist < WORMHOLE_CORE_RADIUS) {
+                    // Find target wormhole
+                    const targetWormhole = wormholes.find(w => w.id === wormhole.targetId);
+                    if (targetWormhole) {
+                        this.resolver.teleportPlayer(player, targetWormhole);
+                    }
+                }
+            }
+        }
     }
 }

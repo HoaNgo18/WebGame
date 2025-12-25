@@ -2,7 +2,8 @@ import {
     MAP_SIZE, FOOD_COUNT, OBSTACLE_COUNT, OBSTACLE_RADIUS_MIN, OBSTACLE_RADIUS_MAX,
     CHEST_COUNT, CHEST_RADIUS, CHEST_TYPES, ITEM_TYPES, ITEM_CONFIG,
     NEBULA_COUNT, NEBULA_RADIUS,
-    STATION_COUNT, STATION_STATS
+    STATION_COUNT, STATION_STATS,
+    WORMHOLE_COUNT, WORMHOLE_RADIUS, WORMHOLE_PULL_RADIUS
 } from 'shared/constants';
 import { Chest } from '../../entities/Chest.js';
 import { Item } from '../../entities/Item.js';
@@ -15,6 +16,7 @@ export class WorldManager {
         this.chests = [];
         this.items = [];
         this.nebulas = [];
+        this.wormholes = [];
 
         // Delta tracking (Change Logs)
         this.delta = {
@@ -34,6 +36,7 @@ export class WorldManager {
         this.initStations();  // Stations trước vì to nhất
         this.initChests();    // Chests sau stations
         this.initNebulas();
+        this.initWormholes(); // Wormholes sau nebulas
         this.initFood();      // Food cuối vì nhiều và nhỏ
     }
 
@@ -122,6 +125,51 @@ export class WorldManager {
                 radius: NEBULA_RADIUS
             });
         }
+    }
+
+    initWormholes() {
+        // Spawn wormholes in pairs (linked to each other)
+        const pairCount = Math.floor(WORMHOLE_COUNT / 2);
+
+        for (let i = 0; i < pairCount; i++) {
+            const id1 = `wormhole_${i * 2}`;
+            const id2 = `wormhole_${i * 2 + 1}`;
+
+            // Use SpawnValidator to find clear positions (away from obstacles)
+            const pos1 = this.spawnValidator.findValidPosition(WORMHOLE_RADIUS, 150, 30, WORMHOLE_PULL_RADIUS + 100);
+
+            // Second wormhole - try to place far from first
+            let pos2;
+            let attempts = 0;
+            do {
+                pos2 = this.spawnValidator.findValidPosition(WORMHOLE_RADIUS, 150, 30, WORMHOLE_PULL_RADIUS + 100);
+                attempts++;
+            } while (Math.hypot(pos2.x - pos1.x, pos2.y - pos1.y) < MAP_SIZE * 0.3 && attempts < 50);
+
+            const wormhole1 = {
+                id: id1,
+                x: pos1.x,
+                y: pos1.y,
+                radius: WORMHOLE_RADIUS,
+                pullRadius: WORMHOLE_PULL_RADIUS,
+                targetId: id2,  // Links to wormhole2
+                pairIndex: i
+            };
+
+            const wormhole2 = {
+                id: id2,
+                x: pos2.x,
+                y: pos2.y,
+                radius: WORMHOLE_RADIUS,
+                pullRadius: WORMHOLE_PULL_RADIUS,
+                targetId: id1,  // Links to wormhole1
+                pairIndex: i
+            };
+
+            this.wormholes.push(wormhole1, wormhole2);
+        }
+
+        console.log(`[WorldManager] Spawned ${this.wormholes.length} wormholes (${pairCount} pairs)`);
     }
 
     initStations() {

@@ -87,6 +87,7 @@ export class Game {
             foods: this.world.foods,
             obstacles: this.world.obstacles,
             nebulas: this.world.nebulas,
+            wormholes: this.world.wormholes,
             chests: this.world.chests,
             items: this.world.items
         });
@@ -151,6 +152,7 @@ export class Game {
                 foods: this.world.foods,
                 obstacles: this.world.obstacles,
                 nebulas: this.world.nebulas,
+                wormholes: this.world.wormholes,
                 chests: this.world.chests,
                 items: this.world.items
             });

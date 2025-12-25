@@ -65,6 +65,15 @@ export const SKINS = [
 export const NEBULA_COUNT = 15; // Thay vì BUSH_COUNT
 export const NEBULA_RADIUS = 70; // Tinh vân thường to hơn bụi cây
 
+// Wormhole Configuration
+export const WORMHOLE_COUNT = 4; // 2 pairs of linked wormholes
+export const WORMHOLE_RADIUS = 100; // Visual radius
+export const WORMHOLE_PULL_RADIUS = 180; // Gravitational pull range
+export const WORMHOLE_CORE_RADIUS = 25; // Teleport trigger radius
+export const WORMHOLE_PULL_FORCE = 200; // Force towards center
+export const WORMHOLE_DRAG = 0.5; // Slow-down when escaping (0-1, lower = more drag)
+export const WORMHOLE_TELEPORT_COOLDOWN = 2000; // 2s cooldown after teleport
+
 export const ITEM_TYPES = {
     // Health & Defense
     HEALTH_PACK: 'HEALTH_PACK',

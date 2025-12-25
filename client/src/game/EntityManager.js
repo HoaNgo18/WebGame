@@ -19,6 +19,7 @@ export class EntityManager {
         this.chests = {};
         this.items = {};
         this.nebulas = []; // Array for nebulas
+        this.wormholes = []; // Array for wormholes
 
         // Explosion tracking
         this.playedExplosions = new Set();
@@ -267,8 +268,8 @@ export class EntityManager {
                 const baseScale = (data.radius * 3.5) / 256;
                 cloud.setScale(baseScale * Phaser.Math.RND.realInRange(0.8, 1.2));
                 cloud.setRotation(Phaser.Math.RND.rotation());
-                cloud.setTint(0x9C27B0);
-                cloud.setAlpha(0.4);
+                cloud.setTint(0x9C27B0);  // Light pink/purple for nebula
+                cloud.setAlpha(0.45);
 
                 container.add(cloud);
             }
@@ -284,6 +285,138 @@ export class EntityManager {
 
             this.nebulas.push(container);
         });
+    }
+
+    // --- WORMHOLE LOGIC ---
+    initWormholes(wormholesData) {
+        if (!wormholesData) return;
+
+        // Cleanup existing wormholes
+        this.wormholes.forEach(w => w.destroy());
+        this.wormholes = [];
+
+        wormholesData.forEach(data => {
+            const container = this.scene.add.container(data.x, data.y);
+
+            // Layer configuration (outer to inner) - PURPLE/BLACK theme for wormhole (3 layers)
+            const layers = [
+                { scale: 0.8, alpha: 0.4, tint: 0x6B3FA0, speed: 12000 },   // Outer - medium purple
+                { scale: 0.5, alpha: 0.6, tint: 0x3D1B5D, speed: 7000 },    // Mid - dark purple
+                { scale: 0.25, alpha: 0.85, tint: 0x120622, speed: 3500 }   // Core - near black
+            ];
+
+            // Create concentric rotating layers
+            layers.forEach((layer, index) => {
+                const layerContainer = this.scene.add.container(0, 0);
+
+                // 3-4 sprites per layer for balance
+                const spriteCount = 3 + Math.floor(Math.random() * 2);
+                const angleStep = (Math.PI * 2) / spriteCount;
+
+                for (let i = 0; i < spriteCount; i++) {
+                    const angle = angleStep * i + (index * 0.3); // Offset between layers
+                    const tex = Phaser.Math.RND.pick(['nebula1', 'nebula2', 'nebula3', 'nebula4', 'nebula5']);
+                    const offsetDist = data.radius * layer.scale * 0.3;
+
+                    const sprite = this.scene.add.image(
+                        Math.cos(angle) * offsetDist,
+                        Math.sin(angle) * offsetDist,
+                        tex
+                    );
+
+                    const baseScale = (data.radius * 2.5 * layer.scale) / 256;
+                    sprite.setScale(baseScale);
+                    sprite.setRotation(angle);
+                    sprite.setTint(layer.tint);
+                    sprite.setAlpha(layer.alpha);
+
+                    layerContainer.add(sprite);
+                }
+
+                container.add(layerContainer);
+
+                // Rotate each layer at different speeds (inner faster)
+                this.scene.tweens.add({
+                    targets: layerContainer,
+                    angle: -360, // Clockwise rotation
+                    duration: layer.speed,
+                    repeat: -1,
+                    ease: 'Linear'
+                });
+            });
+
+            // Glowing core center - larger and with glow effect
+            const outerGlow = this.scene.add.circle(0, 0, data.radius * 0.3, 0x8B00FF, 0.2);
+            container.add(outerGlow);
+
+            const innerGlow = this.scene.add.circle(0, 0, data.radius * 0.2, 0x6B3FA0, 0.4);
+            container.add(innerGlow);
+
+            const core = this.scene.add.circle(0, 0, data.radius * 0.12, 0x000000, 1);
+            core.setStrokeStyle(3, 0x8B00FF, 0.8);
+            container.add(core);
+
+            // Pulse animation for core glow
+            this.scene.tweens.add({
+                targets: [outerGlow, innerGlow],
+                alpha: 0.1,
+                scaleX: 1.3,
+                scaleY: 1.3,
+                duration: 1000,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            // Particle vortex effect - particles being sucked into center
+            this.createWormholeParticles(container, data.radius);
+
+            container.setDepth(14);
+            this.wormholes.push(container);
+        });
+    }
+
+    createWormholeParticles(container, radius) {
+        // Create multiple particles that spiral inward
+        const particleCount = 8;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = this.scene.add.circle(0, 0, 3, 0xAA66FF, 0.8);  // Purple particles
+            container.add(particle);
+
+            // Start at random position on outer edge
+            const startAngle = Math.random() * Math.PI * 2;
+            const startDist = radius * (0.8 + Math.random() * 0.3);
+            particle.x = Math.cos(startAngle) * startDist;
+            particle.y = Math.sin(startAngle) * startDist;
+
+            // Create spiral-in animation
+            const duration = 2000 + Math.random() * 2000;
+            const delay = i * (duration / particleCount);
+
+            this.scene.tweens.add({
+                targets: particle,
+                x: 0,
+                y: 0,
+                scaleX: 0.1,
+                scaleY: 0.1,
+                alpha: 0,
+                duration: duration,
+                delay: delay,
+                ease: 'Cubic.easeIn',
+                repeat: -1,
+                onRepeat: () => {
+                    // Reset to new random position on outer edge
+                    const newAngle = Math.random() * Math.PI * 2;
+                    const newDist = radius * (0.8 + Math.random() * 0.3);
+                    particle.x = Math.cos(newAngle) * newDist;
+                    particle.y = Math.sin(newAngle) * newDist;
+                    particle.scaleX = 1;
+                    particle.scaleY = 1;
+                    particle.alpha = 0.8;
+                }
+            });
+        }
     }
 
     // --- CHEST LOGIC ---

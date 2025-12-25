@@ -81,6 +81,7 @@ export class BaseScene extends Phaser.Scene {
         this.entityManager.updateFoods({ foods: data.foods });
         this.entityManager.initObstacles(data.obstacles);
         this.entityManager.initNebulas(data.nebulas);
+        this.entityManager.initWormholes(data.wormholes);
         this.entityManager.updateChests({ chests: data.chests });
         this.entityManager.updateItems({ items: data.items });
 
