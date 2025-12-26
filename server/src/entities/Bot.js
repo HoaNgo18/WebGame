@@ -1,6 +1,7 @@
 // server/src/entities/Bot.js - SPACE SHIP AI WITH ZONE AVOIDANCE
 import { Player } from './Player.js';
 import { distance } from 'shared/utils';
+import { WORMHOLE_PULL_RADIUS, BOT_WORMHOLE_ESCAPE_FORCE } from 'shared/constants';
 
 const BOT_NAMES = [
     "Stardust", "Nebula", "Comet", "Photon",
@@ -45,17 +46,16 @@ export class Bot extends Player {
         if (this.dead) return;
 
         // ========================================
-        // PRIORITY 1: ZONE AVOIDANCE (CAO NHẤT)
+        // PRIORITY 1: ZONE AVOIDANCE (Arena mode only - life threatening)
         // ========================================
         const zoneStatus = this.checkZoneStatus(game);
-
         if (zoneStatus.inDanger) {
             this.handleZoneDanger(zoneStatus);
             return;
         }
 
         // ========================================
-        // PRIORITY 2: VALIDATE TARGET
+        // PRIORITY 2: FIND/VALIDATE TARGET (Player detection)
         // ========================================
         if (this.target) {
             let targetPlayer = null;
@@ -75,26 +75,96 @@ export class Bot extends Player {
             }
         }
 
-        // ========================================
-        // PRIORITY 3: COMBAT OR WANDER
-        // ========================================
         if (!this.target) {
             this.findTarget(game);
         }
 
+        // ========================================
+        // PRIORITY 3: CHASE PLAYER (if target exists)
+        // ========================================
         if (this.target) {
             if (zoneStatus.needsAttention) {
                 this.engageTargetWithZoneAwareness(game, zoneStatus);
             } else {
                 this.engageTarget(game);
             }
+            return;
+        }
+
+        // ========================================
+        // PRIORITY 4: ESCAPE WORMHOLE (if no player to chase)
+        // ========================================
+        const wormholeStatus = this.checkWormholeProximity(game);
+        if (wormholeStatus.inDanger) {
+            this.escapeWormhole(wormholeStatus);
+            return;
+        }
+
+        // ========================================
+        // PRIORITY 5: WANDER (nothing else to do)
+        // ========================================
+        if (zoneStatus.needsAttention) {
+            this.moveTowardsSafeZone(zoneStatus);
         } else {
-            if (zoneStatus.needsAttention) {
-                this.moveTowardsSafeZone(zoneStatus);
-            } else {
-                this.wander();
+            this.wander();
+        }
+    }
+
+    // ========================================
+    // WORMHOLE ESCAPE LOGIC
+    // ========================================
+
+    checkWormholeProximity(game) {
+        const wormholes = game.worldManager?.wormholes || [];
+
+        let closestWormhole = null;
+        let closestDist = Infinity;
+
+        for (const wh of wormholes) {
+            const dist = Math.hypot(this.x - wh.x, this.y - wh.y);
+            if (dist < WORMHOLE_PULL_RADIUS && dist < closestDist) {
+                closestDist = dist;
+                closestWormhole = wh;
             }
         }
+
+        if (closestWormhole) {
+            return {
+                inDanger: true,
+                wormhole: closestWormhole,
+                distance: closestDist,
+                escapeAngle: Math.atan2(this.y - closestWormhole.y, this.x - closestWormhole.x)
+            };
+        }
+
+        return { inDanger: false };
+    }
+
+    escapeWormhole(status) {
+        // Move AWAY from wormhole center with boosted force
+        this.desiredAngle = status.escapeAngle;
+
+        let angleDiff = this.desiredAngle - this.angle;
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+        const angleThreshold = 0.3;
+
+        if (Math.abs(angleDiff) > angleThreshold) {
+            this.input.left = angleDiff < 0;
+            this.input.right = angleDiff > 0;
+        } else {
+            this.input.left = false;
+            this.input.right = false;
+        }
+
+        // Always thrust forward to escape (with boosted force conceptually)
+        // The actual force multiplier would be applied in physics, but bot just needs to accelerate hard
+        this.input.up = true;
+        this.input.down = false;
+
+        // Panic mode: no shooting while escaping
+        this.input.space = false;
     }
 
     // ========================================

@@ -249,16 +249,17 @@ export class CollisionResolver {
             return false; // Still on cooldown
         }
 
-        // Teleport to target wormhole (offset slightly to avoid immediate re-teleport)
-        const offsetDist = targetWormhole.radius * 0.8;
+        // Teleport to OUTSIDE the pull radius to prevent being sucked back in
+        const offsetDist = targetWormhole.pullRadius + 50; // Place OUTSIDE pull zone
         const angle = Math.random() * Math.PI * 2;
 
         player.x = targetWormhole.x + Math.cos(angle) * offsetDist;
         player.y = targetWormhole.y + Math.sin(angle) * offsetDist;
 
-        // Reset velocity
-        player.vx = 0;
-        player.vy = 0;
+        // Give player velocity AWAY from wormhole (escape boost)
+        const escapeSpeed = 150;
+        player.vx = Math.cos(angle) * escapeSpeed;
+        player.vy = Math.sin(angle) * escapeSpeed;
 
         // Set cooldown
         player.lastTeleportTime = now;

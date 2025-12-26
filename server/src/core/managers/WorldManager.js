@@ -3,7 +3,7 @@ import {
     CHEST_COUNT, CHEST_RADIUS, CHEST_TYPES, ITEM_TYPES, ITEM_CONFIG,
     NEBULA_COUNT, NEBULA_RADIUS,
     STATION_COUNT, STATION_STATS,
-    WORMHOLE_COUNT, WORMHOLE_RADIUS, WORMHOLE_PULL_RADIUS
+    WORMHOLE_COUNT, WORMHOLE_RADIUS, WORMHOLE_PULL_RADIUS, WORMHOLE_ISOLATION_RADIUS
 } from 'shared/constants';
 import { Chest } from '../../entities/Chest.js';
 import { Item } from '../../entities/Item.js';
@@ -31,13 +31,13 @@ export class WorldManager {
         // Spawn validator - khởi tạo sau khi các arrays đã được tạo
         this.spawnValidator = new SpawnValidator(this);
 
-        // Init - thứ tự quan trọng: obstacles trước (được phép overlap)
-        this.initObstacles();
-        this.initStations();  // Stations trước vì to nhất
-        this.initChests();    // Chests sau stations
-        this.initNebulas();
-        this.initWormholes(); // Wormholes sau nebulas
-        this.initFood();      // Food cuối vì nhiều và nhỏ
+        // Init - WORMHOLES FIRST to establish isolation zones
+        this.initWormholes();     // Wormholes TRƯỚC TIÊN
+        this.initObstacles();     // Obstacles (được phép overlap nhau)
+        this.initStations();      // Stations 
+        this.initChests();        // Chests
+        this.initNebulas();       // Nebulas (phải tránh wormhole zones)
+        this.initFood();          // Food cuối vì nhiều và nhỏ
     }
 
     resetDelta() {
@@ -57,7 +57,6 @@ export class WorldManager {
     }
 
     initObstacles() {
-        // Logic thiên thạch giữ nguyên như file cũ của bạn
         const meteorSizes = {
             tiny: { width: 50, height: 50, radius: 25 },
             small: { width: 80, height: 90, radius: 40 },
@@ -72,8 +71,13 @@ export class WorldManager {
                 'spaceMeteors_001', 'spaceMeteors_002', 'spaceMeteors_003', 'spaceMeteors_004']
         };
 
-        let i = 0;
-        while (i < OBSTACLE_COUNT) {
+        let spawned = 0;
+        let attempts = 0;
+        const maxAttempts = OBSTACLE_COUNT * 20;
+
+        while (spawned < OBSTACLE_COUNT && attempts < maxAttempts) {
+            attempts++;
+
             const rand = Math.random();
             let randomSize;
             if (rand < 0.3) randomSize = 'big';
@@ -81,50 +85,95 @@ export class WorldManager {
             else randomSize = 'small';
 
             const sizeData = meteorSizes[randomSize];
+            const max = MAP_SIZE / 2 - Math.max(sizeData.width, sizeData.height) / 2;
+
+            let x, y;
 
             if (randomSize === 'small') {
-                const clusterSize = Math.floor(Math.random() * 3) + 2;
+                // Cluster spawning for small meteors
                 const clusterX = (Math.random() * MAP_SIZE * 0.8) - MAP_SIZE * 0.4;
                 const clusterY = (Math.random() * MAP_SIZE * 0.8) - MAP_SIZE * 0.4;
 
-                for (let j = 0; j < clusterSize && i < OBSTACLE_COUNT; j++, i++) {
+                // Check cluster center first
+                if (this.isInWormholeZone(clusterX, clusterY)) {
+                    continue;
+                }
+
+                const clusterSize = Math.floor(Math.random() * 3) + 2;
+                for (let j = 0; j < clusterSize && spawned < OBSTACLE_COUNT; j++) {
                     const offsetDist = 100 + Math.random() * 50;
                     const offsetAngle = Math.random() * Math.PI * 2;
-                    const x = clusterX + Math.cos(offsetAngle) * offsetDist;
-                    const y = clusterY + Math.sin(offsetAngle) * offsetDist;
-                    const spriteKey = meteorSprites[randomSize][Math.floor(Math.random() * meteorSprites[randomSize].length)];
+                    x = clusterX + Math.cos(offsetAngle) * offsetDist;
+                    y = clusterY + Math.sin(offsetAngle) * offsetDist;
 
+                    // Skip if in wormhole zone
+                    if (this.isInWormholeZone(x, y)) continue;
+
+                    const spriteKey = meteorSprites[randomSize][Math.floor(Math.random() * meteorSprites[randomSize].length)];
                     this.obstacles.push({
-                        id: `obs_${i}`,
-                        x: x, y: y, radius: sizeData.radius, width: sizeData.width, height: sizeData.height,
+                        id: `obs_${spawned}`,
+                        x, y, radius: sizeData.radius, width: sizeData.width, height: sizeData.height,
                         size: randomSize, sprite: spriteKey
                     });
+                    spawned++;
                 }
             } else {
-                const max = MAP_SIZE / 2 - Math.max(sizeData.width, sizeData.height) / 2;
+                x = (Math.random() * MAP_SIZE) - max;
+                y = (Math.random() * MAP_SIZE) - max;
+
+                // Check wormhole zone
+                if (this.isInWormholeZone(x, y)) {
+                    continue;
+                }
+
                 const spriteKey = meteorSprites[randomSize][Math.floor(Math.random() * meteorSprites[randomSize].length)];
                 this.obstacles.push({
-                    id: `obs_${i}`,
-                    x: (Math.random() * MAP_SIZE) - max,
-                    y: (Math.random() * MAP_SIZE) - max,
-                    radius: sizeData.radius, width: sizeData.width, height: sizeData.height,
+                    id: `obs_${spawned}`,
+                    x, y, radius: sizeData.radius, width: sizeData.width, height: sizeData.height,
                     size: randomSize, sprite: spriteKey
                 });
-                i++;
+                spawned++;
             }
         }
+        console.log(`[WorldManager] ${spawned} obstacles spawned (${attempts} attempts)`);
+    }
+
+    // Helper: Check if position is within any wormhole's isolation zone
+    isInWormholeZone(x, y) {
+        for (const wh of this.wormholes) {
+            const dist = Math.hypot(x - wh.x, y - wh.y);
+            if (dist < WORMHOLE_ISOLATION_RADIUS) {
+                return true;
+            }
+        }
+        return false;
     }
 
     initNebulas() {
-        for (let i = 0; i < NEBULA_COUNT; i++) {
+        let spawned = 0;
+        let attempts = 0;
+        const maxAttempts = NEBULA_COUNT * 10;
+
+        while (spawned < NEBULA_COUNT && attempts < maxAttempts) {
+            attempts++;
             const max = MAP_SIZE / 2 - NEBULA_RADIUS;
+            const x = (Math.random() * MAP_SIZE) - max;
+            const y = (Math.random() * MAP_SIZE) - max;
+
+            // Check wormhole isolation zone
+            if (this.isInWormholeZone(x, y)) {
+                continue; // Try again
+            }
+
             this.nebulas.push({
-                id: `nebula_${i}`,
-                x: (Math.random() * MAP_SIZE) - max,
-                y: (Math.random() * MAP_SIZE) - max,
+                id: `nebula_${spawned}`,
+                x: x,
+                y: y,
                 radius: NEBULA_RADIUS
             });
+            spawned++;
         }
+        console.log(`[WorldManager] ${spawned} nebulas spawned (${attempts} attempts)`);
     }
 
     initWormholes() {

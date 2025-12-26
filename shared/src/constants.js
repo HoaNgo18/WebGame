@@ -68,11 +68,13 @@ export const NEBULA_RADIUS = 70; // Tinh vân thường to hơn bụi cây
 // Wormhole Configuration
 export const WORMHOLE_COUNT = 4; // 2 pairs of linked wormholes
 export const WORMHOLE_RADIUS = 100; // Visual radius
-export const WORMHOLE_PULL_RADIUS = 180; // Gravitational pull range
+export const WORMHOLE_PULL_RADIUS = 300; // Gravitational pull range (matches visual outer layer)
 export const WORMHOLE_CORE_RADIUS = 25; // Teleport trigger radius
 export const WORMHOLE_PULL_FORCE = 200; // Force towards center
 export const WORMHOLE_DRAG = 0.5; // Slow-down when escaping (0-1, lower = more drag)
 export const WORMHOLE_TELEPORT_COOLDOWN = 2000; // 2s cooldown after teleport
+export const WORMHOLE_ISOLATION_RADIUS = 450; // Safe zone around wormholes (pullRadius + 150)
+export const BOT_WORMHOLE_ESCAPE_FORCE = 3.0; // Force multiplier for bot escape
 
 export const ITEM_TYPES = {
     // Health & Defense
