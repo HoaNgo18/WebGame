@@ -1,30 +1,29 @@
+// server/src/core/Physics.js
+import { MAP_SIZE } from 'shared/constants';
+import { Quadtree } from '../utils/Quadtree.js';
+import { CollisionResolver } from './physics/CollisionResolver.js';
+import { CollisionDetector } from './physics/CollisionDetector.js';
+
 export class Physics {
-    static distance(x1, y1, x2, y2) {
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        return Math.sqrt(dx * dx + dy * dy);
+    constructor(game) {
+        this.game = game;
+        // Khởi tạo Resolver và Detector
+        this.resolver = new CollisionResolver(game);
+        this.detector = new CollisionDetector(game, this.resolver);
     }
 
-    static circleCollision(obj1, obj2) {
-        const dist = this.distance(obj1.x, obj1.y, obj2.x, obj2.y);
-        return dist < (obj1.radius + obj2.radius);
-    }
+    checkCollisions() {
+        // 1. Build Quadtree cho frame hiện tại
+        const boundary = { x: 0, y: 0, width: MAP_SIZE, height: MAP_SIZE };
+        const qt = new Quadtree(boundary, 4);
 
-    static pointInCircle(px, py, cx, cy, radius) {
-        return this.distance(px, py, cx, cy) < radius;
-    }
+        this.game.players.forEach(player => {
+            qt.insert({ x: player.x, y: player.y, userData: player });
+        });
 
-    static clamp(value, min, max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    static normalizeAngle(angle) {
-        while (angle < 0) angle += Math.PI * 2;
-        while (angle >= Math.PI * 2) angle -= Math.PI * 2;
-        return angle;
-    }
-
-    static angleBetween(x1, y1, x2, y2) {
-        return Math.atan2(y2 - y1, x2 - x1);
+        // 2. Chạy Detection (Detector sẽ gọi Resolver nếu cần)
+        this.detector.checkProjectiles(qt);
+        this.detector.checkPlayers(qt);
+        this.detector.checkExplosions();
     }
 }

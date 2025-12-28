@@ -1,199 +1,227 @@
-import { TICK_RATE, MAP_SIZE, WEAPON_STATS, SHIP_RADIUS } from 'shared/constants';
+import { TICK_RATE, CHEST_TYPES } from 'shared/constants';
 import { PacketType } from 'shared/packetTypes';
 import { Player } from '../entities/Player.js';
-import { Projectile } from '../entities/Projectile.js';
-import { CollisionResolver } from './physics/CollisionResolver.js';
-import { FoodManager } from './managers/FoodManager.js';
-import { ObstacleManager } from './managers/ObstacleManager.js';
-import { ChestManager } from './managers/ChestManager.js';
+import { Physics } from './Physics.js';
+
+// Import managers
+import { WorldManager } from './managers/WorldManager.js';
+import { BotManager } from './managers/BotManager.js';
+import { StatsService } from './managers/StatsService.js';
+import { Explosion } from '../entities/Explosion.js';
 
 export class Game {
     constructor(server) {
         this.server = server;
         this.players = new Map();
-        this.projectiles = new Map();
-        this.projectileIdCounter = 0;
-        this.lastUpdate = Date.now();
-        this.tickInterval = null;
+        this.projectiles = [];
+        this.explosions = [];
 
-        // Managers
-        this.foodManager = new FoodManager(this);
-        this.obstacleManager = new ObstacleManager(this);
-        this.chestManager = new ChestManager(this);
-        this.collisionResolver = new CollisionResolver(this);
+        // Initialize Managers
+        this.world = new WorldManager();
+        this.bots = new BotManager(this);
+
+        this.physics = new Physics(this);
+
+        this.tickInterval = null;
+        this.lastTick = Date.now();
     }
 
     start() {
-        // Initialize managers
-        this.foodManager.init();
-        this.obstacleManager.init();
-        this.chestManager.init();
+        const SIMULATION_RATE = 60; // Server ticks 60 FPS
+        const BROADCAST_RATE = 20;   // Broadcast 20 FPS
 
-        const tickTime = 1000 / TICK_RATE;
-        this.tickInterval = setInterval(() => this.update(), tickTime);
-        console.log(`Game loop started at ${TICK_RATE} ticks/second`);
+        setInterval(() => this.tick(), 1000 / SIMULATION_RATE);
+        setInterval(() => this.sendStateUpdate(), 1000 / BROADCAST_RATE);
     }
 
-    stop() {
-        if (this.tickInterval) {
-            clearInterval(this.tickInterval);
-            this.tickInterval = null;
+    tick() {
+        const now = Date.now();
+        let dt = (now - this.lastTick) / 1000;
+        this.lastTick = now;
+        if (dt > 0.05) dt = 0.05;
+
+        // 1. Update Projectiles
+        this.updateProjectiles(dt);
+
+        // 2. Update Players (Input + Move)
+        this.players.forEach(player => {
+            if (!player.dead) player.update(dt);
+        });
+
+        // 3. Update Bots (AI logic + Spawning)
+        this.bots.update(dt);
+
+        // 4. Physics Collision
+        this.physics.checkCollisions();
+
+        // 4.5. Cleanup expired explosions
+        for (let i = this.explosions.length - 1; i >= 0; i--) {
+            if (this.explosions[i].shouldRemove()) {
+                this.explosions.splice(i, 1);
+            }
+        }
+
+        this.world.chests.forEach(chest => chest.update(dt));
+
+        // 5. World Management (Spawn Food, Chests, Big Chest)
+        this.world.spawnFood();
+        this.world.spawnNormalChestIfNeeded();
+        this.world.spawnStationIfNeeded();
+
+        // 6. Broadcast State
+        this.sendStateUpdate();
+    }
+
+    // --- PLAYER MANAGEMENT ---
+    addPlayer(clientId, name, userId = null, skinId = 'default') {
+        const player = new Player(clientId, name, userId, skinId);
+        this.players.set(clientId, player);
+
+        // Send INIT
+        this.server.sendToClient(clientId, {
+            type: PacketType.INIT,
+            id: clientId,
+            player: player.serialize(),
+            players: Array.from(this.players.values()).map(p => p.serialize()),
+            foods: this.world.foods,
+            obstacles: this.world.obstacles,
+            nebulas: this.world.nebulas,
+            chests: this.world.chests,
+            items: this.world.items
+        });
+
+        this.server.broadcast({
+            type: PacketType.PLAYER_JOIN,
+            player: player.serialize()
+        }, clientId);
+    }
+
+    removePlayer(clientId) {
+        const player = this.players.get(clientId);
+        if (player) {
+            this.players.delete(clientId);
+            this.server.broadcast({ type: PacketType.PLAYER_LEAVE, id: clientId });
         }
     }
 
-    update() {
-        const now = Date.now();
-        const deltaTime = now - this.lastUpdate;
-        this.lastUpdate = now;
-
-        // Update all players
-        this.players.forEach(player => {
-            player.update(deltaTime);
-
-            // Check food collision
-            this.foodManager.checkCollision(player);
-
-            // Check item collision
-            this.chestManager.checkItemCollision(player);
-        });
-
-        // Update all projectiles
-        this.projectiles.forEach((projectile, id) => {
-            projectile.update(deltaTime);
-            if (!projectile.active) {
-                this.projectiles.delete(id);
-            }
-        });
-
-        // Update managers
-        this.chestManager.update(deltaTime);
-
-        // Check collisions
-        this.collisionResolver.update();
-
-        // Send state to all clients
-        this.broadcastState();
+    // --- EVENTS ---
+    handleInput(clientId, inputData) {
+        const player = this.players.get(clientId);
+        if (player && !player.dead) player.setInput(inputData);
     }
 
-    broadcastState() {
+    handleAttack(clientId) {
+        const player = this.players.get(clientId);
+        if (player && !player.dead) {
+            const newProjectiles = player.attack();
+            if (newProjectiles) this.projectiles.push(...newProjectiles);
+        }
+    }
+
+    handleSelectSlot(clientId, slotIndex) {
+        const player = this.players.get(clientId);
+        if (player && !player.dead) {
+            if (slotIndex >= 0 && slotIndex <= 4) {
+                player.selectedSlot = slotIndex;
+            }
+        }
+    }
+
+    handleUseItem(clientId) {
+        const player = this.players.get(clientId);
+        if (player && !player.dead) {
+            player.activateCurrentItem(this);
+        }
+    }
+
+    respawnPlayer(clientId, skinId) {
+        const player = this.players.get(clientId);
+        if (player) {
+            // 1. Reset player state
+            player.dead = false;
+            player.respawn(skinId);
+
+            // 2. Send INIT again
+            this.server.sendToClient(clientId, {
+                type: PacketType.INIT,
+                id: clientId,
+                player: player.serialize(),
+                players: Array.from(this.players.values()).map(p => p.serialize()),
+                foods: this.world.foods,
+                obstacles: this.world.obstacles,
+                nebulas: this.world.nebulas,
+                chests: this.world.chests,
+                items: this.world.items
+            });
+
+            // 3. Notify other players
+            this.server.broadcast({
+                type: PacketType.RESPAWN,
+                player: player.serialize()
+            }, clientId);
+        }
+    }
+
+    // --- STATS DELEGATION ---
+    async savePlayerScore(player) {
+        await StatsService.savePlayerScore(this.server, player);
+    }
+
+    async saveKillerStats(player) {
+        await StatsService.saveKillerStats(this.server, player);
+    }
+
+    updateProjectiles(dt) {
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            const proj = this.projectiles[i];
+            proj.update(dt);
+
+            const isExpired = proj.distanceTraveled >= proj.range && !proj.isMine;
+            const shouldRemove = proj.shouldRemove();
+            const isHit = proj.hit;
+
+            if (isExpired || shouldRemove || isHit) {
+                if (proj.weaponType === 'BOMB') {
+                    const explosion = new Explosion(
+                        proj.x,
+                        proj.y,
+                        100, // Radius
+                        proj.damage,
+                        proj.ownerId,
+                        proj.ownerName
+                    );
+                    this.explosions.push(explosion);
+                }
+
+                this.projectiles.splice(i, 1);
+            }
+        }
+    }
+
+    // --- NETWORK ---
+    sendStateUpdate() {
+
         const state = {
             type: PacketType.UPDATE,
-            players: Array.from(this.players.values()).map(p => p.toJSON()),
-            projectiles: Array.from(this.projectiles.values()).map(p => p.toJSON()),
-            foods: this.foodManager.getFoodsData(),
-            obstacles: this.obstacleManager.getObstaclesData(),
-            nebulas: this.obstacleManager.getNebulasData(),
-            chests: this.chestManager.getChestsData(),
-            items: this.chestManager.getItemsData(),
-            timestamp: Date.now()
+            t: Date.now(),
+            players: Array.from(this.players.values()).map(p => p.serialize()),
+            projectiles: this.projectiles.map(p => p.serialize()),
+            explosions: this.explosions.map(e => e.serialize()),
+
+            foodsAdded: this.world.delta.foodsAdded,
+            foodsRemoved: this.world.delta.foodsRemoved,
+            chestsAdded: this.world.delta.chestsAdded.map(c => ({
+                ...c,
+                rotation: c.rotation || 0
+            })),
+
+            chestsRemoved: this.world.delta.chestsRemoved,
+            itemsAdded: this.world.delta.itemsAdded,
+            itemsRemoved: this.world.delta.itemsRemoved,
+
         };
 
         this.server.broadcast(state);
-    }
-
-    addPlayer(id, name, ws) {
-        const x = Math.random() * (MAP_SIZE - 200) + 100;
-        const y = Math.random() * (MAP_SIZE - 200) + 100;
-
-        const player = new Player(id, name, x, y);
-        player.ws = ws;
-
-        this.players.set(id, player);
-        return player;
-    }
-
-    removePlayer(id) {
-        this.players.delete(id);
-    }
-
-    handleInput(playerId, input) {
-        const player = this.players.get(playerId);
-        if (player) {
-            player.setInput(input);
-        }
-    }
-
-    handleAttack(playerId) {
-        const player = this.players.get(playerId);
-        if (!player) return;
-
-        // Use current weapon
-        const weaponType = player.currentWeapon || 'BLUE';
-        const weaponStats = WEAPON_STATS[weaponType];
-
-        // Check cooldown
-        const now = Date.now();
-        if (player.lastAttack && now - player.lastAttack < weaponStats.cooldown) {
-            return;
-        }
-
-        player.lastAttack = now;
-
-        // Create projectile at ship nose
-        const projectileId = ++this.projectileIdCounter;
-        const spawnX = player.x + Math.cos(player.rotation) * SHIP_RADIUS;
-        const spawnY = player.y + Math.sin(player.rotation) * SHIP_RADIUS;
-
-        const projectile = new Projectile(
-            projectileId,
-            playerId,
-            spawnX,
-            spawnY,
-            player.rotation,
-            weaponType
-        );
-
-        this.projectiles.set(projectileId, projectile);
-    }
-
-    handleSelectSlot(playerId, slot) {
-        const player = this.players.get(playerId);
-        if (player) {
-            player.selectSlot(slot);
-        }
-    }
-
-    handleUseItem(playerId) {
-        const player = this.players.get(playerId);
-        if (!player) return;
-
-        const effect = player.useItem();
-        if (effect && effect.type === 'plant_bomb') {
-            // TODO: Implement bomb planting in future
-        }
-    }
-
-    handlePlayerDeath(playerId, killerId) {
-        const player = this.players.get(playerId);
-        if (!player) return;
-
-        const killer = this.players.get(killerId);
-        if (killer) {
-            killer.kills++;
-        }
-
-        // Broadcast death
-        this.server.broadcast({
-            type: PacketType.PLAYER_DIED,
-            playerId,
-            killerId
-        });
-
-        // Respawn player
-        player.lives = 5;
-        player.x = Math.random() * (MAP_SIZE - 200) + 100;
-        player.y = Math.random() * (MAP_SIZE - 200) + 100;
-        player.vx = 0;
-        player.vy = 0;
-        player.inventory = [null, null, null, null];
-        player.currentWeapon = 'BLUE';
-    }
-
-    getPlayer(id) {
-        return this.players.get(id);
-    }
-
-    getPlayersData() {
-        return Array.from(this.players.values()).map(p => p.toJSON());
+        this.world.resetDelta();
     }
 }
