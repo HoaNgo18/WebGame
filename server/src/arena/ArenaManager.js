@@ -1,85 +1,127 @@
+// server/src/arena/ArenaManager.js
 import { ArenaRoom } from './ArenaRoom.js';
+import { PacketType } from 'shared/packetTypes';
 
 export class ArenaManager {
     constructor(server) {
         this.server = server;
-        this.rooms = new Map();
-        this.roomIdCounter = 0;
-        this.maxRooms = 10;
+        this.rooms = new Map(); // roomId -> ArenaRoom
+        this.currentWaitingRoom = null;
+        this.roomCounter = 0;
+
+        // Create new waiting room every minute
+        this.roomCreateInterval = setInterval(() => {
+            this.createNewWaitingRoom();
+        }, 60000);
+
+        // Create first room immediately
+        this.createNewWaitingRoom();
     }
 
-    createRoom() {
-        if (this.rooms.size >= this.maxRooms) {
-            return null;
-        }
-
-        const roomId = ++this.roomIdCounter;
-        const room = new ArenaRoom(roomId, this.server);
-        this.rooms.set(roomId, room);
-
-        console.log(`Arena room ${roomId} created`);
-        return room;
-    }
-
-    findAvailableRoom() {
-        // Find room that's waiting and has space
-        for (const [id, room] of this.rooms) {
-            if (room.state === 'waiting' && room.players.size < 20) {
-                return room;
+    createNewWaitingRoom() {
+        // If current waiting room has players but isn't full, let it continue
+        if (this.currentWaitingRoom && this.currentWaitingRoom.status === 'waiting') {
+            const playerCount = this.currentWaitingRoom.getRealPlayerCount();
+            if (playerCount > 0) {
+                // Start the old room 
+                this.currentWaitingRoom.startCountdown();
+            } else {
+                // No players, destroy the empty room
+                this.currentWaitingRoom.destroy();
             }
         }
 
-        // Create new room if none available
-        return this.createRoom();
+        // Create new room
+        this.roomCounter++;
+        const roomId = `arena_${this.roomCounter}_${Date.now()}`;
+        const room = new ArenaRoom(roomId, this);
+
+        this.rooms.set(roomId, room);
+        this.currentWaitingRoom = room;
+
+        // Start room's wait timer
+        room.startWaitTimer();
+
+        return room;
     }
 
-    joinRoom(player, roomId = null) {
-        let room;
-
-        if (roomId) {
-            room = this.rooms.get(roomId);
-            if (!room) return null;
-        } else {
-            room = this.findAvailableRoom();
+    // Find a room for player to join
+    getWaitingRoom() {
+        if (this.currentWaitingRoom &&
+            this.currentWaitingRoom.status === 'waiting' &&
+            this.currentWaitingRoom.players.size < this.currentWaitingRoom.maxPlayers) {
+            return this.currentWaitingRoom;
         }
 
-        if (!room) return null;
+        // Create new room if needed
+        return this.createNewWaitingRoom();
+    }
 
-        if (room.addPlayer(player)) {
-            player.arenaRoomId = room.id;
+    // Handle player joining arena queue
+    joinArena(clientId, name, userId = null, skinId = 'default') {
+        const room = this.getWaitingRoom();
+
+        if (room.addPlayer(clientId, name, userId, skinId)) {
             return room;
         }
 
         return null;
     }
 
-    leaveRoom(player) {
-        if (!player.arenaRoomId) return;
+    // Handle player leaving arena
+    leaveArena(clientId) {
+        const client = this.server.clients.get(clientId);
+        if (!client || !client.arenaRoomId) return;
 
-        const room = this.rooms.get(player.arenaRoomId);
+        const room = this.rooms.get(client.arenaRoomId);
         if (room) {
-            room.removePlayer(player.id);
-
-            // Clean up empty rooms
-            if (room.players.size === 0 && room.state === 'waiting') {
-                this.rooms.delete(room.id);
-                console.log(`Arena room ${room.id} removed (empty)`);
-            }
+            room.removePlayer(clientId);
         }
-
-        player.arenaRoomId = null;
     }
 
+    // Get room by ID
     getRoom(roomId) {
         return this.rooms.get(roomId);
     }
 
-    getRoomsList() {
-        return Array.from(this.rooms.values()).map(room => ({
-            id: room.id,
-            state: room.state,
-            players: room.players.size,
-            maxPlayers: 20
-        }));
+    // Get room by client
+    getRoomByClient(clientId) {
+        const client = this.server.clients.get(clientId);
+        if (!client || !client.arenaRoomId) return null;
+        return this.rooms.get(client.arenaRoomId);
+    }
+
+    // Remove room
+    removeRoom(roomId) {
+        const room = this.rooms.get(roomId);
+        if (room === this.currentWaitingRoom) {
+            this.currentWaitingRoom = null;
+        }
+        this.rooms.delete(roomId);
+    }
+
+    // Get status of all rooms
+    getStatus() {
+        return {
+            totalRooms: this.rooms.size,
+            waitingRoom: this.currentWaitingRoom ? {
+                id: this.currentWaitingRoom.id,
+                playerCount: this.currentWaitingRoom.getRealPlayerCount(),
+                maxPlayers: this.currentWaitingRoom.maxPlayers,
+                status: this.currentWaitingRoom.status
+            } : null,
+            rooms: Array.from(this.rooms.values()).map(r => ({
+                id: r.id,
+                status: r.status,
+                playerCount: r.getRealPlayerCount(),
+                totalPlayers: r.players.size
+            }))
+        };
+    }
+
+    destroy() {
+        clearInterval(this.roomCreateInterval);
+        this.rooms.forEach(room => room.destroy());
+        this.rooms.clear();
     }
 }

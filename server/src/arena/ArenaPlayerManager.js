@@ -1,91 +1,203 @@
-import { MAP_SIZE, ARENA_CONFIG } from 'shared/constants';
+// server/src/arena/ArenaPlayerManager.js
+import { Player } from '../entities/Player.js';
+import { Bot } from '../entities/Bot.js';
+import { MAP_SIZE } from 'shared/constants';
+import { PacketType } from 'shared/packetTypes';
 
+/**
+ * Manages players and bots in Arena room
+ */
 export class ArenaPlayerManager {
     constructor(room) {
         this.room = room;
-        this.lastDamageTime = new Map();
+        this.players = new Map();
+        this.clientIds = new Set();
     }
 
-    spawnAllPlayers() {
-        const players = Array.from(this.room.players.values());
-        const spawnPoints = this.generateSpawnPoints(players.length);
+    /**
+     * Add a player to the room
+     * @param {string} clientId
+     * @param {string} name
+     * @param {string|null} userId
+     * @param {string} skinId
+     * @returns {boolean}
+     */
+    addPlayer(clientId, name, userId = null, skinId = 'default') {
+        if (!['waiting', 'countdown'].includes(this.room.status)) return false;
+        if (this.players.size >= this.room.maxPlayers) return false;
 
-        players.forEach((player, index) => {
-            const spawn = spawnPoints[index];
-            player.x = spawn.x;
-            player.y = spawn.y;
-            player.rotation = spawn.rotation;
-            player.alive = true;
-            player.placement = 0;
-            player.kills = 0;
-            player.lives = 5;
-            player.vx = 0;
-            player.vy = 0;
+        const player = new Player(clientId, name, userId, skinId);
+        player.dead = false;
+
+        this.players.set(clientId, player);
+        this.clientIds.add(clientId);
+
+        const client = this.room.server.clients.get(clientId);
+        if (client) {
+            client.arenaRoomId = this.room.id;
+            client.player = player;
+        }
+
+        return player;
+    }
+
+    /**
+     * Remove a player from the room
+     * @param {string} clientId
+     */
+    removePlayer(clientId) {
+        const player = this.players.get(clientId);
+        if (!player) return null;
+
+        this.players.delete(clientId);
+        this.clientIds.delete(clientId);
+
+        const client = this.room.server.clients.get(clientId);
+        if (client) {
+            client.arenaRoomId = null;
+            client.player = null;
+        }
+
+        return player;
+    }
+
+    /**
+     * Fill remaining slots with bots
+     */
+    fillWithBots() {
+        const needed = this.room.maxPlayers - this.players.size;
+
+        for (let i = 0; i < needed; i++) {
+            const botId = `arena_bot_${this.room.id}_${Date.now()}_${i}`;
+            const bot = new Bot(botId);
+
+            const r = MAP_SIZE / 2;
+            bot.x = (Math.random() * r * 2) - r;
+            bot.y = (Math.random() * r * 2) - r;
+            bot.dead = false;
+
+            this.players.set(botId, bot);
+
+            this.room.broadcast({
+                type: PacketType.PLAYER_JOIN,
+                player: bot.serialize()
+            });
+        }
+    }
+
+    /**
+     * Get player by clientId
+     * @param {string} clientId
+     * @returns {Player|Bot|undefined}
+     */
+    getPlayer(clientId) {
+        return this.players.get(clientId);
+    }
+
+    /**
+     * Count of real (non-bot) players
+     * @returns {number}
+     */
+    getRealPlayerCount() {
+        return Array.from(this.players.values()).filter(p => !p.isBot).length;
+    }
+
+    /**
+     * Count of bots
+     * @returns {number}
+     */
+    getBotCount() {
+        return Array.from(this.players.values()).filter(p => p.isBot).length;
+    }
+
+    /**
+     * Count of alive real players
+     * @returns {number}
+     */
+    getAlivePlayerCount() {
+        return Array.from(this.players.values()).filter(p => !p.dead && !p.isBot).length;
+    }
+
+    /**
+     * Count of alive bots
+     * @returns {number}
+     */
+    getAliveBotCount() {
+        return Array.from(this.players.values()).filter(p => !p.dead && p.isBot).length;
+    }
+
+    /**
+     * Total alive count (players + bots)
+     * @returns {number}
+     */
+    getTotalAliveCount() {
+        return Array.from(this.players.values()).filter(p => !p.dead).length;
+    }
+
+    /**
+     * Update all players
+     * @param {number} dt - Delta time
+     */
+    updatePlayers(dt) {
+        this.players.forEach(player => {
+            if (!player.dead) player.update(dt);
         });
     }
 
-    generateSpawnPoints(count) {
-        const points = [];
-        const centerX = MAP_SIZE / 2;
-        const centerY = MAP_SIZE / 2;
-        const radius = MAP_SIZE * 0.35; // Spawn in a circle
-
-        for (let i = 0; i < count; i++) {
-            const angle = (i / count) * Math.PI * 2;
-            points.push({
-                x: centerX + Math.cos(angle) * radius,
-                y: centerY + Math.sin(angle) * radius,
-                rotation: angle + Math.PI // Face center
-            });
-        }
-
-        return points;
-    }
-
-    applyZoneDamage(zone) {
-        if (!zone) return;
-
-        const now = Date.now();
-
-        this.room.players.forEach((player, playerId) => {
-            if (!player.alive) return;
-
-            const dx = player.x - zone.centerX;
-            const dy = player.y - zone.centerY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist > zone.radius) {
-                // Outside zone
-                const lastDamage = this.lastDamageTime.get(playerId) || 0;
-
-                if (now - lastDamage >= ARENA_CONFIG.ZONE_DAMAGE_INTERVAL) {
-                    this.lastDamageTime.set(playerId, now);
-
-                    const isDead = player.takeDamage(ARENA_CONFIG.ZONE_DAMAGE);
-
-                    if (isDead) {
-                        this.room.eliminatePlayer(playerId, null);
-                    }
-                }
+    /**
+     * Update bot AI
+     */
+    updateBots() {
+        this.players.forEach(player => {
+            if (!player.dead && player instanceof Bot) {
+                player.think(this.room);
             }
         });
     }
 
-    respawnPlayer(playerId) {
-        // In arena mode, no respawn - player is eliminated
-        // This method exists for consistency with normal game mode
-        return false;
+    /**
+     * Get all players for serialization
+     * @returns {Array}
+     */
+    serializeAll() {
+        return Array.from(this.players.values()).map(p => p.serialize());
     }
 
-    getAliveCount() {
-        let count = 0;
-        this.room.players.forEach(player => {
-            if (player.alive) count++;
+    /**
+     * Get alive players for state update
+     * @returns {Array}
+     */
+    serializeAlive() {
+        const alivePlayers = [];
+        this.players.forEach(p => {
+            if (!p.dead || (Date.now() - (p.deathTime || 0)) < 2000) {
+                alivePlayers.push(p.serialize());
+            }
         });
-        return count;
+        return alivePlayers;
     }
 
-    reset() {
-        this.lastDamageTime.clear();
+    /**
+     * Clear all players
+     */
+    clear() {
+        this.players.clear();
+        this.clientIds.clear();
+    }
+
+    /**
+     * Iterate over all players
+     * @param {Function} callback
+     */
+    forEach(callback) {
+        this.players.forEach(callback);
+    }
+
+    /**
+     * Get players map size
+     * @returns {number}
+     */
+    get size() {
+        return this.players.size;
     }
 }

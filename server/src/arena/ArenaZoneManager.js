@@ -1,123 +1,201 @@
-import { ARENA_CONFIG, MAP_SIZE } from 'shared/constants';
-import { PacketType } from 'shared/packetTypes';
+// server/src/arena/ArenaZoneManager.js
+import { MAP_SIZE, ARENA_CONFIG } from 'shared/constants';
 
+/**
+ * Manages zone shrinking logic for Arena mode
+ */
 export class ArenaZoneManager {
     constructor(room) {
         this.room = room;
-        this.phases = ARENA_CONFIG.ZONE_SHRINK_PHASES;
-
-        this.currentPhase = 0;
-        this.currentZone = null;
-        this.targetZone = null;
-        this.shrinking = false;
+        this.zone = null;
+        this.init();
     }
 
+    /**
+     * Initialize zone state
+     */
     init() {
-        // Set initial zone
-        const phase = this.phases[0];
-        this.currentZone = {
-            centerX: phase.centerX,
-            centerY: phase.centerY,
-            radius: phase.radius
+        const startRadius = MAP_SIZE / 2;
+        this.zone = {
+            x: 0,
+            y: 0,
+            radius: startRadius,
+            targetX: 0,
+            targetY: 0,
+            targetRadius: startRadius,
+            phase: 0,
+            state: 'WAITING',
+            nextActionTime: 0
         };
-        this.targetZone = { ...this.currentZone };
-        this.currentPhase = 0;
     }
 
-    update(gameTime) {
-        const nextPhase = this.phases[this.currentPhase + 1];
-        if (!nextPhase) return;
+    /**
+     * Reset zone for new game
+     */
+    resetForGame() {
+        const startRadius = MAP_SIZE / 2;
 
-        // Check if it's time to start shrinking
-        if (gameTime >= nextPhase.time && !this.shrinking) {
-            this.startShrinking(nextPhase);
-        }
+        this.zone.phase = 0;
+        this.zone.state = 'WAITING';
+        this.zone.radius = startRadius;
+        this.zone.x = 0;
+        this.zone.y = 0;
+        this.zone.targetRadius = startRadius * ARENA_CONFIG.ZONE.RADII_PERCENT[0];
 
-        // Apply shrinking
-        if (this.shrinking) {
-            this.applyShrink();
-        }
+        this.calculateNextZoneTarget();
+
+        this.zone.nextActionTime = Date.now() + (ARENA_CONFIG.ZONE.WAIT_TIME * 1000);
     }
 
-    startShrinking(phase) {
-        this.shrinking = true;
-        this.currentPhase++;
+    /**
+     * Update zone each tick
+     * @param {number} dt - Delta time in seconds
+     */
+    update(dt) {
+        if (this.zone.state === 'FINISHED') return;
 
-        // Calculate target center (random if null)
-        const centerX = phase.centerX ?? this.getRandomCenter(phase.radius);
-        const centerY = phase.centerY ?? this.getRandomCenter(phase.radius);
+        const now = Date.now();
 
-        this.targetZone = {
-            centerX,
-            centerY,
-            radius: phase.radius
-        };
-
-        this.room.broadcast({
-            type: PacketType.ARENA_ZONE_UPDATE,
-            currentZone: this.currentZone,
-            targetZone: this.targetZone,
-            phase: this.currentPhase
-        });
-    }
-
-    applyShrink() {
-        const speed = ARENA_CONFIG.ZONE_SHRINK_SPEED / 60; // Per frame
-
-        // Shrink radius
-        if (this.currentZone.radius > this.targetZone.radius) {
-            this.currentZone.radius = Math.max(
-                this.targetZone.radius,
-                this.currentZone.radius - speed
-            );
-        }
-
-        // Move center
-        const dx = this.targetZone.centerX - this.currentZone.centerX;
-        const dy = this.targetZone.centerY - this.currentZone.centerY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist > 1) {
-            const moveSpeed = speed * 0.5;
-            this.currentZone.centerX += (dx / dist) * moveSpeed;
-            this.currentZone.centerY += (dy / dist) * moveSpeed;
-        }
-
-        // Check if shrink complete
-        if (this.currentZone.radius === this.targetZone.radius && dist <= 1) {
-            this.shrinking = false;
+        if (this.zone.state === 'WAITING') {
+            if (now >= this.zone.nextActionTime) {
+                this.startShrink();
+            }
+        } else if (this.zone.state === 'SHRINKING') {
+            this.updateShrink(dt, now);
         }
     }
 
-    getRandomCenter(radius) {
-        const margin = radius + 100;
-        return margin + Math.random() * (MAP_SIZE - margin * 2);
+    /**
+     * Start zone shrinking phase
+     */
+    startShrink() {
+        if (this.zone.phase >= ARENA_CONFIG.ZONE.RADII_PERCENT.length) {
+            this.zone.state = 'FINISHED';
+            this.zone.targetRadius = 0;
+            return;
+        }
+
+        this.zone.state = 'SHRINKING';
+        this.zone.nextActionTime = Date.now() + (ARENA_CONFIG.ZONE.SHRINK_TIME * 1000);
     }
 
-    isInZone(x, y) {
-        const dx = x - this.currentZone.centerX;
-        const dy = y - this.currentZone.centerY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        return dist <= this.currentZone.radius;
+    /**
+     * Update during shrinking state
+     * @param {number} dt - Delta time
+     * @param {number} now - Current timestamp
+     */
+    updateShrink(dt, now) {
+        const timeLeft = (this.zone.nextActionTime - now) / 1000;
+
+        if (timeLeft <= 0) {
+            this.finishShrink();
+        } else {
+            this.interpolate(dt, timeLeft);
+        }
     }
 
-    getCurrentZone() {
-        return this.currentZone;
+    /**
+     * Finish current shrink phase
+     */
+    finishShrink() {
+        // Snap to target
+        this.zone.radius = this.zone.targetRadius;
+        this.zone.x = this.zone.targetX;
+        this.zone.y = this.zone.targetY;
+
+        // Increase phase for next shrink
+        this.zone.phase++;
+
+        // Check if any phases left
+        if (this.zone.phase >= ARENA_CONFIG.ZONE.RADII_PERCENT.length) {
+            this.zone.state = 'FINISHED';
+            return;
+        }
+
+        // Calculate target for next phase
+        const BASE_RADIUS = MAP_SIZE / 2;
+        const nextPercent = ARENA_CONFIG.ZONE.RADII_PERCENT[this.zone.phase];
+        this.zone.targetRadius = BASE_RADIUS * nextPercent;
+        this.calculateNextZoneTarget();
+
+        // Switch to WAITING state
+        this.zone.state = 'WAITING';
+        this.zone.nextActionTime = Date.now() + (ARENA_CONFIG.ZONE.WAIT_TIME * 1000);
     }
 
-    getZoneData() {
+    /**
+     * Smoothly interpolate zone position and radius
+     * @param {number} dt - Delta time
+     * @param {number} timeLeft - Time left for shrink
+     */
+    interpolate(dt, timeLeft) {
+        const factor = dt / (timeLeft + dt);
+        this.zone.radius += (this.zone.targetRadius - this.zone.radius) * factor;
+        this.zone.x += (this.zone.targetX - this.zone.x) * factor;
+        this.zone.y += (this.zone.targetY - this.zone.y) * factor;
+    }
+
+    /**
+     * Calculate random target position for next zone
+     */
+    calculateNextZoneTarget() {
+        const currentR = this.zone.radius;
+        const nextR = this.zone.targetRadius;
+
+        if (nextR <= 0) {
+            this.zone.targetX = this.zone.x;
+            this.zone.targetY = this.zone.y;
+            return;
+        }
+
+        const maxDistance = currentR - nextR;
+
+        if (maxDistance <= 0) {
+            this.zone.targetX = this.zone.x;
+            this.zone.targetY = this.zone.y;
+            return;
+        }
+
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * maxDistance;
+
+        this.zone.targetX = this.zone.x + Math.cos(angle) * distance;
+        this.zone.targetY = this.zone.y + Math.sin(angle) * distance;
+    }
+
+    /**
+     * Check if a position is outside the zone
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @returns {boolean}
+     */
+    isOutsideZone(x, y) {
+        const dist = Math.hypot(x - this.zone.x, y - this.zone.y);
+        return dist > this.zone.radius;
+    }
+
+    /**
+     * Serialize zone data for network
+     * @returns {Object}
+     */
+    serialize() {
         return {
-            current: this.currentZone,
-            target: this.targetZone,
-            phase: this.currentPhase,
-            shrinking: this.shrinking
+            x: Math.round(this.zone.x),
+            y: Math.round(this.zone.y),
+            r: Math.round(this.zone.radius),
+            p: this.zone.phase,
+            state: this.zone.state,
+            targetX: Math.round(this.zone.targetX),
+            targetY: Math.round(this.zone.targetY),
+            targetR: Math.round(this.zone.targetRadius)
         };
     }
 
-    reset() {
-        this.currentPhase = 0;
-        this.currentZone = null;
-        this.targetZone = null;
-        this.shrinking = false;
+    /**
+     * Get current zone object
+     * @returns {Object}
+     */
+    getZone() {
+        return this.zone;
     }
 }
