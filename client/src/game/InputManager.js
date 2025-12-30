@@ -1,69 +1,74 @@
 import Phaser from 'phaser';
-import { socketManager } from '../network/SocketManager';
+import { GameActions } from './GameActions';
 
 export class InputManager {
     constructor(scene) {
         this.scene = scene;
-        this.keys = null;
-        this.lastInput = null;
-    }
-
-    setup() {
-        // Setup WASD + Arrow keys
-        this.keys = this.scene.input.keyboard.addKeys({
-            up: Phaser.Input.Keyboard.KeyCodes.W,
-            down: Phaser.Input.Keyboard.KeyCodes.S,
-            left: Phaser.Input.Keyboard.KeyCodes.A,
-            right: Phaser.Input.Keyboard.KeyCodes.D,
-            upArrow: Phaser.Input.Keyboard.KeyCodes.UP,
-            downArrow: Phaser.Input.Keyboard.KeyCodes.DOWN,
-            leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
-            rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT,
-            // Inventory slots
-            slot1: Phaser.Input.Keyboard.KeyCodes.ONE,
-            slot2: Phaser.Input.Keyboard.KeyCodes.TWO,
-            slot3: Phaser.Input.Keyboard.KeyCodes.THREE,
-            slot4: Phaser.Input.Keyboard.KeyCodes.FOUR,
-            // Use item
-            useItem: Phaser.Input.Keyboard.KeyCodes.E
+        this.keys = scene.input.keyboard.addKeys({
+            W: Phaser.Input.Keyboard.KeyCodes.W,
+            A: Phaser.Input.Keyboard.KeyCodes.A,
+            S: Phaser.Input.Keyboard.KeyCodes.S,
+            D: Phaser.Input.Keyboard.KeyCodes.D,
+            UP: Phaser.Input.Keyboard.KeyCodes.UP,
+            DOWN: Phaser.Input.Keyboard.KeyCodes.DOWN,
+            LEFT: Phaser.Input.Keyboard.KeyCodes.LEFT,
+            RIGHT: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+            SPACE: Phaser.Input.Keyboard.KeyCodes.SPACE,
+            ONE: Phaser.Input.Keyboard.KeyCodes.ONE,
+            TWO: Phaser.Input.Keyboard.KeyCodes.TWO,
+            THREE: Phaser.Input.Keyboard.KeyCodes.THREE,
+            FOUR: Phaser.Input.Keyboard.KeyCodes.FOUR,
+            FIVE: Phaser.Input.Keyboard.KeyCodes.FIVE
         });
 
-        // Inventory slot selection
-        this.keys.slot1.on('down', () => socketManager.selectSlot(0));
-        this.keys.slot2.on('down', () => socketManager.selectSlot(1));
-        this.keys.slot3.on('down', () => socketManager.selectSlot(2));
-        this.keys.slot4.on('down', () => socketManager.selectSlot(3));
-
-        // Use item with E key
-        this.keys.useItem.on('down', () => socketManager.useItem());
+        this.setupEventListeners();
     }
 
-    update() {
-        const input = {
-            up: this.keys.up.isDown || this.keys.upArrow.isDown,
-            down: this.keys.down.isDown || this.keys.downArrow.isDown,
-            left: this.keys.left.isDown || this.keys.leftArrow.isDown,
-            right: this.keys.right.isDown || this.keys.rightArrow.isDown
+    setupEventListeners() {
+        // Mouse click -> Attack (via GameActions)
+        this.scene.input.on('pointerdown', () => {
+            GameActions.attack();
+        });
+
+        // Space -> Use Item (via GameActions)
+        this.scene.input.keyboard.on('keydown-SPACE', () => {
+            GameActions.useItem();
+        });
+
+        // Slot selection (via GameActions)
+        const slotKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'];
+        slotKeys.forEach((key, index) => {
+            this.scene.input.keyboard.on(`keydown-${key}`, () => {
+                GameActions.selectSlot(index);
+            });
+        });
+    }
+
+    getInputData() {
+        const pointer = this.scene.input.activePointer;
+        const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+        // Get touch movement state (from mobile joystick)
+        const touchMovement = GameActions.getTouchMovement();
+
+        // Combine keyboard and touch movement
+        const movement = {
+            up: this.keys.W.isDown || this.keys.UP.isDown || touchMovement.up,
+            down: this.keys.S.isDown || this.keys.DOWN.isDown || touchMovement.down,
+            left: this.keys.A.isDown || this.keys.LEFT.isDown || touchMovement.left,
+            right: this.keys.D.isDown || this.keys.RIGHT.isDown || touchMovement.right,
+            space: this.keys.SPACE.isDown,
         };
 
-        // Only send if input changed
-        if (this.hasInputChanged(input)) {
-            this.lastInput = { ...input };
-            socketManager.sendInput(input);
-        }
-    }
+        // Get aim position (touch or mouse)
+        const touchAim = GameActions.getTouchAim();
+        const mouseX = touchAim.active ? touchAim.x : worldPoint.x;
+        const mouseY = touchAim.active ? touchAim.y : worldPoint.y;
 
-    hasInputChanged(input) {
-        if (!this.lastInput) return true;
-        return (
-            input.up !== this.lastInput.up ||
-            input.down !== this.lastInput.down ||
-            input.left !== this.lastInput.left ||
-            input.right !== this.lastInput.right
-        );
-    }
-
-    destroy() {
-        // Clean up
+        return {
+            movement,
+            mouseX,
+            mouseY
+        };
     }
 }
