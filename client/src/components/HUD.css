@@ -1,208 +1,289 @@
-.hud {
-    position: fixed;
+/* HUD.css */
+.hud-container {
+    position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
-    z-index: 100;
-    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
 }
 
-/* Health Bar */
-.hud-health {
+/* Stats (Top Left) */
+.hud-stats-container {
+    position: absolute;
+    top: 25px;
+    left: 25px;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 12px;
+    font-family: 'Segoe UI', 'Arial', sans-serif;
+    pointer-events: none;
 }
 
-.health-label {
-    color: #ff4444;
-    font-size: 12px;
-    font-weight: bold;
-    text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
-}
-
-.health-bar-container {
+.hud-row {
     display: flex;
-    gap: 3px;
+    align-items: center;
+    gap: 10px;
 }
 
-.health-heart {
-    font-size: 20px;
-    filter: drop-shadow(0 0 5px rgba(255, 68, 68, 0.8));
+.hud-label {
+    font-size: 14px;
+    font-weight: 800;
+    color: #DDD;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #000;
+    width: 50px;
+}
+
+.life-icon {
+    width: 28px;
+    height: auto;
     transition: all 0.3s ease;
 }
 
-.health-heart.empty {
-    opacity: 0.3;
-    filter: grayscale(100%);
+.life-active {
+    filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5));
+    transform: scale(1);
 }
 
-/* Weapon Display */
-.hud-weapon {
+.life-lost {
+    filter: grayscale(100%) brightness(30%) opacity(0.5);
+    transform: scale(0.9);
+}
+
+.score-val {
+    font-size: 24px;
+    font-weight: 900;
+    color: #FFD700;
+    text-shadow: 2px 2px 0 #000;
+    font-family: monospace;
+}
+
+.ammo-bar-container {
+    display: flex;
+    height: 14px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 3px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    gap: 2px;
+}
+
+.ammo-bullet {
+    width: 18px;
+    height: 100%;
+    border-radius: 2px;
+    transform: skewX(-15deg);
+    transition: all 0.1s ease;
+}
+
+.alive-val {
+    font-size: 24px;
+    font-weight: 900;
+    color: #FF4444;
+    text-shadow: 2px 2px 0 #000;
+    font-family: monospace;
+}
+
+/* Leaderboard (Top Right) */
+.hud-leaderboard {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    color: white;
+    min-width: 200px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.leaderboard-title {
+    margin: 0 0 10px 0;
+    border-bottom: 1px solid #555;
+    padding-bottom: 8px;
+    color: #FFD700;
+    text-align: center;
+    font-size: 16px;
+}
+
+.leader-list {
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 5px;
 }
 
-.weapon-label {
-    color: #888;
-    font-size: 10px;
-    font-weight: bold;
-}
-
-.weapon-display {
-    padding: 8px 16px;
-    border-radius: 5px;
+.leader-item {
+    display: flex;
+    justify-content: space-between;
     font-size: 14px;
+    color: #fff;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+.leader-item.me {
+    color: #4CAF50;
     font-weight: bold;
-    text-transform: uppercase;
-    border: 2px solid;
+    background: rgba(76, 175, 80, 0.2);
 }
 
-.weapon-blue {
-    color: #00E5FF;
-    border-color: #00E5FF;
-    background: rgba(0, 229, 255, 0.2);
-    box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-}
-
-.weapon-red {
-    color: #FF0000;
-    border-color: #FF0000;
-    background: rgba(255, 0, 0, 0.2);
-    box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
-}
-
-.weapon-green {
-    color: #00FF00;
-    border-color: #00FF00;
-    background: rgba(0, 255, 0, 0.2);
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
-}
-
-/* Inventory */
-.hud-inventory {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-}
-
-.inventory-label {
+.leader-rank {
     color: #888;
+    margin-right: 8px;
+    width: 20px;
+    display: inline-block;
+}
+
+/* Minimap (Bottom Right) */
+.hud-minimap {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #555;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.minimap-axis {
+    position: absolute;
+    background: #333;
+}
+
+.minimap-axis.h {
+    top: 50%;
+    width: 100%;
+    height: 1px;
+}
+
+.minimap-axis.v {
+    left: 50%;
+    height: 100%;
+    width: 1px;
+}
+
+.minimap-player {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #00FF00;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 4px #00FF00;
+}
+
+.minimap-king {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #FFD700;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    border: 1px solid #000;
+    z-index: 1;
+}
+
+.king-icon {
+    position: absolute;
+    top: -10px;
+    left: -3px;
     font-size: 10px;
+}
+
+/* Notification */
+.hud-notif {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 1000;
+    animation: fadeInOut 1.5s ease;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+    }
+
+    20% {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+
+    80% {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+}
+
+.notif-name {
+    font-size: 28px;
     font-weight: bold;
+    color: #FFD700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 2px 2px 4px rgba(0, 0, 0, 0.9);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
 }
 
-.inventory-slots {
+.notif-desc {
+    font-size: 16px;
+    font-weight: 600;
+    color: #FFD700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    opacity: 0.9;
+}
+
+/* Inventory (Bottom Left) */
+.hud-inventory {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
     display: flex;
-    gap: 5px;
+    gap: 10px;
+    pointer-events: none;
 }
 
-.inventory-slot {
+.inv-slot {
+    position: relative;
     width: 50px;
     height: 50px;
-    background: rgba(0, 0, 0, 0.7);
-    border: 2px solid #444;
+    background-color: rgba(255, 255, 255, 0.4);
+    border: 2px solid #555;
     border-radius: 8px;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    position: relative;
-    transition: all 0.2s ease;
+    transition: all 0.1s ease;
 }
 
-.inventory-slot.selected {
-    border-color: #ffcc00;
-    box-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+.inv-slot.selected {
+    border: 3px solid #FFD700;
+    transform: scale(1.1);
 }
 
-.slot-number {
+.slot-num {
     position: absolute;
     top: 2px;
     left: 5px;
     font-size: 10px;
-    color: #666;
-}
-
-.slot-item {
-    font-size: 24px;
-}
-
-/* Stats */
-.hud-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    align-items: flex-end;
-}
-
-.stat {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 5px 10px;
-    border-radius: 5px;
-}
-
-.stat-icon {
-    font-size: 16px;
-}
-
-.stat-value {
-    color: #fff;
-    font-size: 14px;
+    color: #000;
     font-weight: bold;
-    min-width: 40px;
-    text-align: right;
 }
 
-/* Buffs */
-.hud-buffs {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.buff {
-    padding: 8px 15px;
-    border-radius: 5px;
-    font-size: 12px;
-    font-weight: bold;
-    animation: buff-pulse 1s infinite;
-}
-
-.buff-shield {
-    background: rgba(255, 215, 0, 0.3);
-    border: 2px solid #FFD700;
-    color: #FFD700;
-}
-
-.buff-speed {
-    background: rgba(0, 255, 255, 0.3);
-    border: 2px solid #00FFFF;
-    color: #00FFFF;
-}
-
-@keyframes buff-pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.7;
-    }
+.slot-img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
 }

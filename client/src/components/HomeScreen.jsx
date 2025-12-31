@@ -1,75 +1,482 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { socket } from '../network/socket';
+import { PacketType } from 'shared/packetTypes';
 import './HomeScreen.css';
 
-export function HomeScreen({ onPlay }) {
-    const [playerName, setPlayerName] = useState('');
+const SKIN_IMAGES = {
+    'default': '/Ships/playerShip1_red.png',
+    'ship_1': '/Ships/playerShip2_red.png',
+    'ship_2': '/Ships/playerShip3_red.png',
+    'ship_3': '/Ships/ufoRed.png',
+    'ship_4': '/Ships/spaceShips_001.png',
+    'ship_5': '/Ships/spaceShips_002.png',
+    'ship_6': '/Ships/spaceShips_004.png',
+    'ship_7': '/Ships/spaceShips_007.png',
+    'ship_8': '/Ships/spaceShips_008.png',
+    'ship_9': '/Ships/spaceShips_009.png'
+};
 
-    const handlePlay = () => {
-        const name = playerName.trim() || 'Player';
-        onPlay(name);
+const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess }) => {
+    const [activeTab, setActiveTab] = useState('home');
+    const [skins, setSkins] = useState([]);
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [localUser, setLocalUser] = useState(user);
+    const [showLogin, setShowLogin] = useState(!user);
+    const [loginTab, setLoginTab] = useState('guest');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('');
+    const [displayName, setDisplayName] = useState('');
+    const [connecting, setConnecting] = useState(false);
+    const [error, setError] = useState('');
+    const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    const API_URL = `${BASE_URL}/api`;
+
+    // Track if we've already requested fresh data to prevent infinite loop
+    const hasRequestedData = React.useRef(false);
+
+    // Sync local user state with prop (only on user change)
+    useEffect(() => {
+        setLocalUser(user);
+        setShowLogin(!user);
+        if (user) {
+            loadSkins();
+            loadLeaderboard();
+        }
+        // Reset the request flag when user changes (e.g., login/logout)
+        hasRequestedData.current = false;
+    }, [user]);
+
+    // Request fresh data ONCE after mount when user exists
+    useEffect(() => {
+        if (user && socket.isConnected && !hasRequestedData.current) {
+            console.log('[HomeScreen] Requesting fresh user data from server (once)');
+            socket.send({ type: PacketType.REQUEST_USER_DATA });
+            hasRequestedData.current = true;
+        }
+    }, [user]);
+
+    // Note: USER_DATA_UPDATE is handled by App.jsx which updates the `user` prop
+    // HomeScreen just syncs localUser from the prop - no separate listener needed
+
+    useEffect(() => {
+        if (activeTab === 'leaderboard') loadLeaderboard();
+    }, [activeTab]);
+
+    const loadSkins = () => {
+        setSkins([
+            { id: 'default', name: 'Starter Red', price: 0 },
+            { id: 'ship_1', name: 'Interceptor', price: 100 },
+            { id: 'ship_2', name: 'Bomber', price: 250 },
+            { id: 'ship_3', name: 'UFO Red', price: 500 },
+            { id: 'ship_4', name: 'Scout', price: 1000 },
+            { id: 'ship_5', name: 'Frigate', price: 1500 },
+            { id: 'ship_6', name: 'Destroyer', price: 2000 },
+            { id: 'ship_7', name: 'Speeder', price: 3000 },
+            { id: 'ship_8', name: 'Tanker', price: 4000 },
+            { id: 'ship_9', name: 'Mothership', price: 5000 }
+        ]);
     };
 
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            handlePlay();
+    const loadLeaderboard = async () => {
+        try {
+            const res = await fetch(`${API_URL}/leaderboard`);
+            if (!res.ok) throw new Error('Failed');
+            const data = await res.json();
+            setLeaderboard(data.map((p, i) => ({ rank: i + 1, username: p.username, score: p.highScore || 0 })));
+        } catch (err) {
+            setLeaderboard([]);
         }
     };
 
+    const handleGuestPlay = async () => {
+        if (!username) {
+            setError('Please enter a name!');
+            return;
+        }
+        setConnecting(true);
+        try {
+            await socket.connect({ name: username });
+            const savedGuest = localStorage.getItem('guest_data');
+            let guestData;
+            if (savedGuest) {
+                const parsed = JSON.parse(savedGuest);
+                guestData = {
+                    ...parsed,
+                    username: username,
+                    isGuest: true,
+                    totalKills: parsed.totalKills || 0,
+                    totalDeaths: parsed.totalDeaths || 0,
+                    coins: parsed.coins || 0,
+                    highScore: parsed.highScore || 0,
+                    equippedSkin: parsed.equippedSkin || 'default'
+                };
+            } else {
+                guestData = {
+                    username: username,
+                    coins: 0,
+                    highScore: 0,
+                    isGuest: true,
+                    equippedSkin: 'default'
+                };
+            }
+            setLocalUser(guestData);
+            setShowLogin(false);
+            onLoginSuccess(guestData);
+        } catch (err) {
+            setError('Cannot connect to game server!');
+            setConnecting(false);
+        }
+    };
+
+    const handleLogin = async () => {
+        if (!username || !password) return setError('Missing login info');
+        setError('');
+        setConnecting(true);
+
+        try {
+            const res = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, displayName })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Login failed');
+
+            localStorage.setItem('game_token', data.token);
+            localStorage.setItem('game_username', data.user.username);
+
+            await socket.connect({
+                token: data.token,
+                name: data.user.displayName || data.user.username
+            });
+
+            setLocalUser(data.user);
+            setShowLogin(false);
+            onLoginSuccess(data.user);
+        } catch (err) {
+            setError(err.message);
+            setConnecting(false);
+        }
+    };
+
+    const handleRegister = async () => {
+        if (!username || !password || !email) return setError('Fill all fields');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) return setError('Invalid email format');
+        if (password.length < 6) return setError('Password must be at least 6 characters');
+        setError('');
+        setConnecting(true);
+
+        try {
+            const res = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, email, displayName })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Register failed');
+
+            setError('Registration successful! Please login.');
+            setLoginTab('login');
+            setConnecting(false);
+        } catch (err) {
+            setError(err.message);
+            setConnecting(false);
+        }
+    };
+
+    const handleEquipSkin = (skinId) => {
+        if (!socket.isConnected) {
+            console.error('[HomeScreen] Cannot equip skin - socket not connected');
+            setError('Connection lost. Please refresh the page.');
+            return;
+        }
+        console.log('[HomeScreen] Equipping skin:', skinId);
+        socket.send({
+            type: PacketType.EQUIP_SKIN,
+            skinId: skinId
+        });
+    };
+
+    const handleBuySkin = (skinId) => {
+        socket.send({
+            type: PacketType.BUY_SKIN,
+            skinId: skinId
+        });
+    };
+
+    const handleLogout = () => {
+        onLogout();
+        setShowLogin(true);
+        setActiveTab('home');
+    };
+
     return (
-        <div className="home-screen">
-            <div className="home-content">
-                {/* Title */}
-                <h1 className="game-title">
-                    <span className="title-space">SPACE</span>
-                    <span className="title-shooter">SHOOTER</span>
-                </h1>
-
-                {/* Subtitle */}
-                <p className="game-subtitle">Battle for survival in the void</p>
-
-                {/* Name Input */}
-                <div className="name-input-container">
-                    <input
-                        type="text"
-                        className="name-input"
-                        placeholder="Enter your name..."
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        maxLength={15}
-                    />
-                </div>
-
-                {/* Play Button */}
-                <button className="play-button" onClick={handlePlay}>
-                    <span className="play-icon">▶</span>
-                    <span>PLAY</span>
-                </button>
-
-                {/* Controls Info */}
-                <div className="controls-info">
-                    <h3>CONTROLS</h3>
-                    <div className="control-row">
-                        <span className="key">WASD</span>
-                        <span className="desc">Move ship</span>
-                    </div>
-                    <div className="control-row">
-                        <span className="key">CLICK</span>
-                        <span className="desc">Shoot</span>
-                    </div>
-                    <div className="control-row">
-                        <span className="key">1-4</span>
-                        <span className="desc">Select item</span>
-                    </div>
-                    <div className="control-row">
-                        <span className="key">E</span>
-                        <span className="desc">Use item</span>
-                    </div>
-                </div>
+        <div className="home-container">
+            {/* Header with login/logout */}
+            <div className="home-header">
+                {localUser ? (
+                    <button className="auth-btn logout-btn" onClick={handleLogout}>Logout</button>
+                ) : (
+                    <button className="auth-btn login-btn" onClick={() => setShowLogin(true)}>Login</button>
+                )}
             </div>
 
-            {/* Background effects */}
-            <div className="stars"></div>
+            {/* Main Content - only show when menu card is not displayed */}
+            {!localUser && (
+                <div className="main-content">
+                    <h1 className="game-title">SHOOTER<span style={{ color: '#FFD700' }}>.IO</span></h1>
+                    <p className="game-subtitle">Battle Royale Multiplayer</p>
+                </div>
+            )}
+
+            {/* Menu Card if logged in */}
+            {localUser && (
+                <div className="menu-card-container">
+                    <div className="menu-card">
+                        <div className="menu-sidebar">
+                            <div className="user-section">
+                                <div className="user-name">{localUser.username}</div>
+                                <div className="user-coin">{localUser.coins} COINS</div>
+                            </div>
+                            <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>Home</button>
+                            <button className={`nav-btn ${activeTab === 'shop' ? 'active' : ''}`} onClick={() => setActiveTab('shop')}>Shop</button>
+                            <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>Profile</button>
+                            <button className={`nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => setActiveTab('leaderboard')}>Leaderboard</button>
+                        </div>
+
+                        <div className="menu-content">
+                            {activeTab === 'home' && (
+                                <div className="button-container">
+                                    <h2>Welcome back, {localUser.username}!</h2>
+                                    <p>Ready to dominate the battlefield?</p>
+                                    <button
+                                        onClick={() => onPlayClick(localUser.equippedSkin)}
+                                        className="game-mode-btn play-btn"
+                                    >
+                                        ENDLESS
+                                    </button>
+
+                                    <button
+                                        onClick={() => onArenaClick(localUser.equippedSkin)}
+                                        className="game-mode-btn arena-btn"
+                                    >
+                                        ARENA
+                                    </button>
+                                </div>
+                            )}
+
+                            {activeTab === 'shop' && (
+                                <div>
+                                    <h2 className="section-title">Skin Collection</h2>
+                                    <div className="skin-grid">
+                                        {skins.map(s => {
+                                            const isOwned = localUser.skins?.includes(s.id) || s.price === 0;
+                                            const isEquipped = localUser.equippedSkin === s.id;
+                                            const imgPath = SKIN_IMAGES[s.id] || SKIN_IMAGES['default'];
+
+                                            return (
+                                                <div key={s.id} className={`skin-card ${isEquipped ? 'active' : ''}`}>
+                                                    <div className="skin-image-container">
+                                                        <img
+                                                            src={imgPath}
+                                                            alt={s.name}
+                                                            className="skin-img"
+                                                            onError={(e) => {
+                                                                e.target.style.border = "2px solid red";
+                                                                e.target.alt = "IMG ERROR";
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="skin-name">{s.name}</div>
+
+                                                    {isOwned ? (
+                                                        <button
+                                                            onClick={() => handleEquipSkin(s.id)}
+                                                            className={`action-btn ${isEquipped ? 'equipped' : 'equip'}`}
+                                                            disabled={isEquipped}
+                                                        >
+                                                            {isEquipped ? 'EQUIPPED' : 'EQUIP'}
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleBuySkin(s.id)}
+                                                            className="action-btn buy"
+                                                        >
+                                                            BUY {s.price}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'profile' && (
+                                <div>
+                                    <h2 className="section-title">Player Stats</h2>
+
+                                    {/* Endless Mode Stats */}
+                                    <div style={{ marginBottom: '30px' }}>
+                                        <h3 style={{ color: '#FFD700', fontSize: '20px', marginBottom: '15px', textAlign: 'center' }}>ENDLESS MODE</h3>
+                                        <div className="stats-grid">
+                                            {[
+                                                { label: 'High Score', val: localUser.highScore || 0, color: '#FFD700' },
+                                                { label: 'Total Kills', val: localUser.totalKills || 0, color: '#FFF' },
+                                                { label: 'Deaths', val: localUser.totalDeaths || 0, color: '#FFF' }
+                                            ].map((stat, idx) => (
+                                                <div key={idx} className="stat-card">
+                                                    <div className="stat-value" style={{ color: stat.color }}>{stat.val}</div>
+                                                    <div className="stat-label">{stat.label}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Arena Mode Stats */}
+                                    <div>
+                                        <h3 style={{ color: '#FFD700', fontSize: '20px', marginBottom: '15px', textAlign: 'center' }}>ARENA MODE</h3>
+                                        <div className="stats-grid">
+                                            {[
+                                                { label: 'Top 1', val: localUser.arenaWins || 0, color: '#FFD700' },
+                                                { label: 'Top 2', val: localUser.arenaTop2 || 0, color: '#FFF' },
+                                                { label: 'Top 3', val: localUser.arenaTop3 || 0, color: '#FFF' }
+                                            ].map((stat, idx) => (
+                                                <div key={idx} className="stat-card">
+                                                    <div className="stat-value" style={{ color: stat.color }}>{stat.val}</div>
+                                                    <div className="stat-label">{stat.label}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'leaderboard' && (
+                                <div>
+                                    <h2 className="section-title">TOP PLAYERS</h2>
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', overflow: 'hidden' }}>
+                                        {leaderboard.map((p, idx) => (
+                                            <div key={idx} className="leader-row">
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                    <span className={idx < 3 ? 'leader-rank-gold' : 'leader-rank-normal'}>#{p.rank}</span>
+                                                    <span style={{ fontWeight: '600' }}>{p.username}</span>
+                                                </div>
+                                                <div className="leader-score">{p.score}</div>
+                                            </div>
+                                        ))}
+                                        {leaderboard.length === 0 && <div style={{ padding: '20px', color: '#666', textAlign: 'center' }}>No data yet</div>}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Login Modal */}
+            {showLogin && (
+                <>
+                    <div className="modal-overlay" onClick={() => setShowLogin(false)}></div>
+                    <div className="login-modal">
+                        <div style={{ display: 'flex', marginBottom: '20px' }}>
+                            <button className={`tab-btn ${loginTab === 'guest' ? 'active' : ''}`} onClick={() => setLoginTab('guest')}>Guest</button>
+                            <button className={`tab-btn ${loginTab === 'login' ? 'active' : ''}`} onClick={() => setLoginTab('login')}>Login</button>
+                            <button className={`tab-btn ${loginTab === 'register' ? 'active' : ''}`} onClick={() => setLoginTab('register')}>Register</button>
+                        </div>
+
+                        {loginTab === 'guest' && (
+                            <div>
+                                <input
+                                    type="text"
+                                    placeholder="Enter your name"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="modal-input"
+                                />
+                                <button onClick={handleGuestPlay} disabled={connecting} className="modal-btn">
+                                    {connecting ? 'Connecting...' : 'Play as Guest'}
+                                </button>
+                            </div>
+                        )}
+
+                        {loginTab === 'login' && (
+                            <div>
+                                <input
+                                    type="text"
+                                    placeholder="Username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="modal-input"
+                                />
+                                <input
+                                    type="password"
+                                    placeholder="Password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="modal-input"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Display Name (Optional)"
+                                    value={displayName}
+                                    onChange={(e) => setDisplayName(e.target.value)}
+                                    className="modal-input"
+                                />
+                                <button onClick={handleLogin} disabled={connecting} className="modal-btn">
+                                    {connecting ? 'Logging in...' : 'Login'}
+                                </button>
+                            </div>
+                        )}
+
+                        {loginTab === 'register' && (
+                            <div>
+                                <input
+                                    type="text"
+                                    placeholder="Username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="modal-input"
+                                />
+                                <input
+                                    type="email"
+                                    placeholder="Email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="modal-input"
+                                />
+                                <input
+                                    type="password"
+                                    placeholder="Password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="modal-input"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Display Name (Optional)"
+                                    value={displayName}
+                                    onChange={(e) => setDisplayName(e.target.value)}
+                                    className="modal-input"
+                                />
+                                <button onClick={handleRegister} disabled={connecting} className="modal-btn">
+                                    {connecting ? 'Registering...' : 'Register'}
+                                </button>
+                            </div>
+                        )}
+
+                        {error && <div className="error-msg">{error}</div>}
+                    </div>
+                </>
+            )}
         </div>
     );
-}
+};
+
+export default HomeScreen;
