@@ -1,19 +1,21 @@
 import Phaser from 'phaser';
-import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 
 export const gameConfig = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
-    parent: 'game-container',
-    backgroundColor: '#1a1a2e',
+    width: window.innerWidth,
+    height: window.innerHeight,
+    parent: 'game-container', // ID của thẻ DIV trong React
+    backgroundColor: '#1a1a1a',
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { y: 0 },
-            debug: false
-        }
+            debug: false, // Bật true để xem hitbox
+        },
     },
-    scene: [BootScene, GameScene]
+    scene: [GameScene], // Danh sách các màn chơi
+    scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    }
 };
