@@ -19,7 +19,8 @@ const SKIN_IMAGES = {
 const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess }) => {
     const [activeTab, setActiveTab] = useState('home');
     const [skins, setSkins] = useState([]);
-    const [leaderboard, setLeaderboard] = useState([]);
+    const [endlessLeaderboard, setEndlessLeaderboard] = useState([]);
+    const [arenaLeaderboard, setArenaLeaderboard] = useState([]);
     const [localUser, setLocalUser] = useState(user);
     const [showLogin, setShowLogin] = useState(!user);
     const [loginTab, setLoginTab] = useState('guest');
@@ -29,6 +30,8 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     const [displayName, setDisplayName] = useState('');
     const [connecting, setConnecting] = useState(false);
     const [error, setError] = useState('');
+    const [settingsTab, setSettingsTab] = useState('general'); // general, account, controls
+    const [accountModal, setAccountModal] = useState(null); // 'displayName', 'password', 'delete'
     const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
     const API_URL = `${BASE_URL}/api`;
 
@@ -39,6 +42,15 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     useEffect(() => {
         setLocalUser(user);
         setShowLogin(!user);
+        setConnecting(false); // Reset connecting state when user changes (logout)
+        setError(''); // Clear any previous errors
+        // Reset input fields on logout
+        if (!user) {
+            setUsername('');
+            setPassword('');
+            setEmail('');
+            setDisplayName('');
+        }
         if (user) {
             loadSkins();
             loadLeaderboard();
@@ -80,12 +92,22 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
     const loadLeaderboard = async () => {
         try {
-            const res = await fetch(`${API_URL}/leaderboard`);
-            if (!res.ok) throw new Error('Failed');
-            const data = await res.json();
-            setLeaderboard(data.map((p, i) => ({ rank: i + 1, username: p.username, score: p.highScore || 0 })));
+            // Fetch Endless leaderboard (top 3 by highScore)
+            const endlessRes = await fetch(`${API_URL}/leaderboard?type=endless&limit=3`);
+            if (endlessRes.ok) {
+                const data = await endlessRes.json();
+                setEndlessLeaderboard(data.players || []);
+            }
+
+            // Fetch Arena leaderboard (top 3 by arenaWins)
+            const arenaRes = await fetch(`${API_URL}/leaderboard?type=arena&limit=3`);
+            if (arenaRes.ok) {
+                const data = await arenaRes.json();
+                setArenaLeaderboard(data.players || []);
+            }
         } catch (err) {
-            setLeaderboard([]);
+            setEndlessLeaderboard([]);
+            setArenaLeaderboard([]);
         }
     };
 
@@ -148,9 +170,16 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
             localStorage.setItem('game_token', data.token);
             localStorage.setItem('game_username', data.user.username);
 
+            // Determine in-game name:
+            // - If displayName exists and not empty → use it
+            // - Otherwise fallback to username
+            const ingameName = (data.user.displayName && data.user.displayName.trim())
+                ? data.user.displayName
+                : data.user.username;
+
             await socket.connect({
                 token: data.token,
-                name: data.user.displayName || data.user.username
+                name: ingameName
             });
 
             setLocalUser(data.user);
@@ -246,8 +275,13 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                             </div>
                             <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>Home</button>
                             <button className={`nav-btn ${activeTab === 'shop' ? 'active' : ''}`} onClick={() => setActiveTab('shop')}>Shop</button>
-                            <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>Profile</button>
+                            <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>Stats</button>
                             <button className={`nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => setActiveTab('leaderboard')}>Leaderboard</button>
+
+                            {/* Settings at bottom with border */}
+                            <div className="nav-spacer"></div>
+                            <div className="nav-divider"></div>
+                            <button className={`nav-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings</button>
                         </div>
 
                         <div className="menu-content">
@@ -320,39 +354,43 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
                             {activeTab === 'profile' && (
                                 <div>
-                                    <h2 className="section-title">Player Stats</h2>
+                                    <h2 className="section-title">PLAYER STATS</h2>
 
-                                    {/* Endless Mode Stats */}
-                                    <div style={{ marginBottom: '30px' }}>
-                                        <h3 style={{ color: '#FFD700', fontSize: '20px', marginBottom: '15px', textAlign: 'center' }}>ENDLESS MODE</h3>
-                                        <div className="stats-grid">
-                                            {[
-                                                { label: 'High Score', val: localUser.highScore || 0, color: '#FFD700' },
-                                                { label: 'Total Kills', val: localUser.totalKills || 0, color: '#FFF' },
-                                                { label: 'Deaths', val: localUser.totalDeaths || 0, color: '#FFF' }
-                                            ].map((stat, idx) => (
-                                                <div key={idx} className="stat-card">
-                                                    <div className="stat-value" style={{ color: stat.color }}>{stat.val}</div>
-                                                    <div className="stat-label">{stat.label}</div>
-                                                </div>
-                                            ))}
+                                    {/* Endless Mode */}
+                                    <div className="stats-section">
+                                        <h3 className="stats-section-title">ENDLESS MODE</h3>
+                                        <div className="stats-list">
+                                            <div className="stats-row">
+                                                <span>High Score</span>
+                                                <span className="stats-value gold">{localUser?.highScore || 0}</span>
+                                            </div>
+                                            <div className="stats-row">
+                                                <span>Total Kills</span>
+                                                <span className="stats-value">{localUser?.totalKills || 0}</span>
+                                            </div>
+                                            <div className="stats-row">
+                                                <span>Deaths</span>
+                                                <span className="stats-value">{localUser?.totalDeaths || 0}</span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    {/* Arena Mode Stats */}
-                                    <div>
-                                        <h3 style={{ color: '#FFD700', fontSize: '20px', marginBottom: '15px', textAlign: 'center' }}>ARENA MODE</h3>
-                                        <div className="stats-grid">
-                                            {[
-                                                { label: 'Top 1', val: localUser.arenaWins || 0, color: '#FFD700' },
-                                                { label: 'Top 2', val: localUser.arenaTop2 || 0, color: '#FFF' },
-                                                { label: 'Top 3', val: localUser.arenaTop3 || 0, color: '#FFF' }
-                                            ].map((stat, idx) => (
-                                                <div key={idx} className="stat-card">
-                                                    <div className="stat-value" style={{ color: stat.color }}>{stat.val}</div>
-                                                    <div className="stat-label">{stat.label}</div>
-                                                </div>
-                                            ))}
+                                    {/* Arena Mode */}
+                                    <div className="stats-section">
+                                        <h3 className="stats-section-title">ARENA MODE</h3>
+                                        <div className="stats-list">
+                                            <div className="stats-row">
+                                                <span>Top 1 (Wins)</span>
+                                                <span className="stats-value gold">{localUser?.arenaWins || 0}</span>
+                                            </div>
+                                            <div className="stats-row">
+                                                <span>Top 2</span>
+                                                <span className="stats-value">{localUser?.arenaTop2 || 0}</span>
+                                            </div>
+                                            <div className="stats-row">
+                                                <span>Top 3</span>
+                                                <span className="stats-value">{localUser?.arenaTop3 || 0}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -361,18 +399,138 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                             {activeTab === 'leaderboard' && (
                                 <div>
                                     <h2 className="section-title">TOP PLAYERS</h2>
-                                    <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', overflow: 'hidden' }}>
-                                        {leaderboard.map((p, idx) => (
-                                            <div key={idx} className="leader-row">
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                                    <span className={idx < 3 ? 'leader-rank-gold' : 'leader-rank-normal'}>#{p.rank}</span>
-                                                    <span style={{ fontWeight: '600' }}>{p.username}</span>
+
+                                    {/* Endless Mode Top 3 */}
+                                    <div className="stats-section">
+                                        <h3 className="stats-section-title">ENDLESS MODE</h3>
+                                        <div className="stats-list">
+                                            {endlessLeaderboard.map((p, idx) => (
+                                                <div key={idx} className="stats-row">
+                                                    <span>
+                                                        <span className={idx < 3 ? 'rank-gold' : 'rank-normal'}>#{p.rank}</span>
+                                                        {' '}{p.username}
+                                                    </span>
+                                                    <span className="stats-value gold">{p.score}</span>
                                                 </div>
-                                                <div className="leader-score">{p.score}</div>
-                                            </div>
-                                        ))}
-                                        {leaderboard.length === 0 && <div style={{ padding: '20px', color: '#666', textAlign: 'center' }}>No data yet</div>}
+                                            ))}
+                                            {endlessLeaderboard.length === 0 && <div className="stats-row" style={{ justifyContent: 'center', color: '#666' }}>No data yet</div>}
+                                        </div>
                                     </div>
+
+                                    {/* Arena Mode Top 3 */}
+                                    <div className="stats-section">
+                                        <h3 className="stats-section-title">ARENA MODE</h3>
+                                        <div className="stats-list">
+                                            {arenaLeaderboard.map((p, idx) => (
+                                                <div key={idx} className="stats-row">
+                                                    <span>
+                                                        <span className={idx < 3 ? 'rank-gold' : 'rank-normal'}>#{p.rank}</span>
+                                                        {' '}{p.username}
+                                                    </span>
+                                                    <span className="stats-value gold">{p.score} wins</span>
+                                                </div>
+                                            ))}
+                                            {arenaLeaderboard.length === 0 && <div className="stats-row" style={{ justifyContent: 'center', color: '#666' }}>No data yet</div>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'settings' && (
+                                <div className="settings-page">
+                                    <h2 className="section-title">SETTINGS</h2>
+
+                                    {/* Sub-tabs */}
+                                    <div className="settings-tabs">
+                                        <button
+                                            className={`settings-tab ${settingsTab === 'general' ? 'active' : ''}`}
+                                            onClick={() => setSettingsTab('general')}
+                                        >
+                                            General
+                                        </button>
+                                        <button
+                                            className={`settings-tab ${settingsTab === 'account' ? 'active' : ''}`}
+                                            onClick={() => setSettingsTab('account')}
+                                        >
+                                            Account
+                                        </button>
+                                        <button
+                                            className={`settings-tab ${settingsTab === 'controls' ? 'active' : ''}`}
+                                            onClick={() => setSettingsTab('controls')}
+                                        >
+                                            Controls
+                                        </button>
+                                    </div>
+
+                                    {/* General Tab - Compact */}
+                                    {settingsTab === 'general' && (
+                                        <div className="settings-container-compact">
+                                            <div className="settings-section-compact">
+                                                <div className="settings-row-inline">
+                                                    <span className="settings-label">Language</span>
+                                                    <select className="settings-select-sm" disabled>
+                                                        <option value="en">English</option>
+                                                        <option value="vi">Tiếng Việt (Soon)</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Account Tab - Compact with buttons */}
+                                    {settingsTab === 'account' && (
+                                        <div className="settings-container-compact">
+                                            {localUser && !localUser.isGuest ? (
+                                                <>
+                                                    <div className="account-info-compact">
+                                                        <div className="info-row-compact">
+                                                            <span>Username:</span>
+                                                            <strong>{localUser.username}</strong>
+                                                        </div>
+                                                        <div className="info-row-compact">
+                                                            <span>Display Name:</span>
+                                                            <strong>{localUser.displayName || localUser.username}</strong>
+                                                        </div>
+                                                        <div className="info-row-compact">
+                                                            <span>Email:</span>
+                                                            <strong>{localUser.email || 'Not set'}</strong>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="account-actions">
+                                                        <button className="account-action-btn" onClick={() => setAccountModal('displayName')}>
+                                                            Change Display Name
+                                                        </button>
+                                                        <button className="account-action-btn" onClick={() => setAccountModal('password')}>
+                                                            Change Password
+                                                        </button>
+                                                        <button className="account-action-btn danger-btn-sm" onClick={() => setAccountModal('delete')}>
+                                                            Delete Account
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="settings-guest-message-compact">
+                                                    Account settings require a registered account.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Controls Tab - Compact */}
+                                    {settingsTab === 'controls' && (
+                                        <div className="settings-container-compact">
+                                            <div className="controls-grid-compact">
+                                                <div className="control-row-compact"><span>Move Up</span><span>W / ↑</span></div>
+                                                <div className="control-row-compact"><span>Move Left</span><span>A / ←</span></div>
+                                                <div className="control-row-compact"><span>Move Down</span><span>S / ↓</span></div>
+                                                <div className="control-row-compact"><span>Move Right</span><span>D / →</span></div>
+                                                <div className="control-row-compact"><span>Shoot</span><span>Left Click</span></div>
+                                                <div className="control-row-compact"><span>Use Item</span><span>Space</span></div>
+                                                <div className="control-row-compact"><span>Select Slot</span><span>1 2 3 4 5</span></div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -422,13 +580,6 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="modal-input"
                                 />
-                                <input
-                                    type="text"
-                                    placeholder="Display Name (Optional)"
-                                    value={displayName}
-                                    onChange={(e) => setDisplayName(e.target.value)}
-                                    className="modal-input"
-                                />
                                 <button onClick={handleLogin} disabled={connecting} className="modal-btn">
                                     {connecting ? 'Logging in...' : 'Login'}
                                 </button>
@@ -460,7 +611,7 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                 />
                                 <input
                                     type="text"
-                                    placeholder="Display Name (Optional)"
+                                    placeholder="Display Name"
                                     value={displayName}
                                     onChange={(e) => setDisplayName(e.target.value)}
                                     className="modal-input"
@@ -475,6 +626,149 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                     </div>
                 </>
             )}
+
+            {/* Account Modals */}
+            {accountModal && (
+                <>
+                    <div className="modal-overlay" onClick={() => setAccountModal(null)}></div>
+                    <div className="account-modal">
+                        {/* Change Display Name Modal */}
+                        {accountModal === 'displayName' && (
+                            <>
+                                <h3>Change Display Name</h3>
+                                <input
+                                    type="text"
+                                    placeholder="New display name"
+                                    className="modal-input"
+                                    defaultValue={localUser?.displayName || localUser?.username || ''}
+                                    id="modal-display-name"
+                                />
+                                <div className="modal-btns">
+                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                    <button className="modal-btn-primary" onClick={async () => {
+                                        const input = document.getElementById('modal-display-name');
+                                        const newName = input.value.trim();
+                                        if (!newName) return;
+
+                                        try {
+                                            const token = localStorage.getItem('game_token');
+                                            const res = await fetch(`${API_URL}/auth/update-profile`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Authorization': `Bearer ${token}`
+                                                },
+                                                body: JSON.stringify({ displayName: newName })
+                                            });
+                                            if (res.ok) {
+                                                // Update local state immediately
+                                                const updatedUser = { ...localUser, displayName: newName };
+                                                setLocalUser(updatedUser);
+                                                setAccountModal(null);
+                                            }
+                                        } catch (err) {
+                                            console.error('Failed to update display name');
+                                        }
+                                    }}>Save</button>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Change Password Modal */}
+                        {accountModal === 'password' && (
+                            <>
+                                <h3>Change Password</h3>
+                                <input type="password" placeholder="Current password" className="modal-input" id="modal-current-pw" />
+                                <input type="password" placeholder="New password" className="modal-input" id="modal-new-pw" />
+                                <input type="password" placeholder="Confirm password" className="modal-input" id="modal-confirm-pw" />
+                                <p id="pw-error" style={{ color: '#FF4444', fontSize: '12px', margin: '5px 0', display: 'none' }}></p>
+                                <div className="modal-btns">
+                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                    <button className="modal-btn-primary" onClick={async () => {
+                                        const currentPw = document.getElementById('modal-current-pw').value;
+                                        const newPw = document.getElementById('modal-new-pw').value;
+                                        const confirmPw = document.getElementById('modal-confirm-pw').value;
+                                        const errorEl = document.getElementById('pw-error');
+
+                                        const showError = (msg) => {
+                                            errorEl.textContent = msg;
+                                            errorEl.style.display = 'block';
+                                        };
+
+                                        if (!currentPw || !newPw || !confirmPw) {
+                                            showError('Please fill all fields');
+                                            return;
+                                        }
+                                        if (newPw !== confirmPw) {
+                                            showError('Passwords do not match');
+                                            return;
+                                        }
+                                        if (newPw.length < 6) {
+                                            showError('Password must be at least 6 characters');
+                                            return;
+                                        }
+
+                                        try {
+                                            const token = localStorage.getItem('game_token');
+                                            const res = await fetch(`${API_URL}/auth/change-password`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Authorization': `Bearer ${token}`
+                                                },
+                                                body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw })
+                                            });
+                                            const data = await res.json();
+                                            if (res.ok) {
+                                                setAccountModal(null);
+                                            } else {
+                                                showError(data.error || 'Failed to change password');
+                                            }
+                                        } catch (err) {
+                                            showError('Failed to change password');
+                                        }
+                                    }}>Change Password</button>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Delete Account Modal */}
+                        {accountModal === 'delete' && (
+                            <>
+                                <h3 style={{ color: '#FF4444' }}>Delete Account</h3>
+                                <p style={{ color: '#888', marginBottom: '20px' }}>
+                                    This will permanently delete your account and all data. This cannot be undone.
+                                </p>
+                                <div className="modal-btns">
+                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                    <button className="modal-btn-danger" onClick={async () => {
+                                        if (!confirm('Are you ABSOLUTELY sure? ALL data will be lost!')) return;
+
+                                        try {
+                                            const token = localStorage.getItem('game_token');
+                                            const res = await fetch(`${API_URL}/auth/delete-account`, {
+                                                method: 'DELETE',
+                                                headers: { 'Authorization': `Bearer ${token}` }
+                                            });
+                                            if (res.ok) {
+                                                onLogout();
+                                            }
+                                        } catch (err) {
+                                            console.error('Failed to delete account');
+                                        }
+                                    }}>Delete My Account</button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </>
+            )}
+
+            {/* Version at bottom left */}
+            <div className="version-text">
+                <div>v1.0.0</div>
+                <div className="developer-text">Developed by Hoa Ngo</div>
+            </div>
         </div>
     );
 };

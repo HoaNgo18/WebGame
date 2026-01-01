@@ -73,6 +73,11 @@ export class ClientPlayer {
         this.score = data.score || 0;
         this.x = data.x;
         this.y = data.y;
+        // Also copy lives and maxLives on init
+        if (data.lives !== undefined) this.lives = data.lives;
+        if (data.maxLives !== undefined) this.maxLives = data.maxLives;
+        if (data.inventory !== undefined) this.inventory = data.inventory;
+        if (data.selectedSlot !== undefined) this.selectedSlot = data.selectedSlot;
     }
 
     createShipSprite(skinId) {

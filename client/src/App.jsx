@@ -52,9 +52,14 @@ function App() {
         }
 
         try {
+            // Determine in-game name: displayName (if exists) or username
+            const ingameName = (user.displayName && user.displayName.trim())
+                ? user.displayName
+                : (user.username || user.name || 'Player');
+
             await socket.connect({
                 token: localStorage.getItem('game_token'),
-                name: user.username
+                name: ingameName
             });
         } catch (err) {
             alert('Cannot connect to game server!');
@@ -84,9 +89,14 @@ function App() {
         const skinToUse = selectedSkinId || user.equippedSkin || 'default';
 
         try {
+            // Determine in-game name: displayName (if exists) or username
+            const ingameName = (user.displayName && user.displayName.trim())
+                ? user.displayName
+                : (user.username || user.name || 'Player');
+
             await socket.connectArena({
                 token: localStorage.getItem('game_token'),
-                name: user.username,
+                name: ingameName,
                 skinId: skinToUse
             });
 
@@ -190,13 +200,17 @@ function App() {
                 setUser(prevUser => {
                     if (prevUser && prevUser.isGuest) {
                         const savedGuest = localStorage.getItem('guest_data');
-                        const oldData = savedGuest ? JSON.parse(savedGuest) : prevUser;
+                        const oldData = savedGuest ? JSON.parse(savedGuest) : {};
                         const updatedGuest = {
                             ...oldData,
+                            // IMPORTANT: Use current session username, not old one!
+                            username: prevUser.username,
+                            isGuest: true,
                             coins: (oldData.coins || 0) + (packet.coins || 0),
                             highScore: Math.max(oldData.highScore || 0, packet.score),
                             totalKills: (oldData.totalKills || 0) + (packet.kills || 0),
-                            totalDeaths: (oldData.totalDeaths || 0) + 1
+                            totalDeaths: (oldData.totalDeaths || 0) + 1,
+                            equippedSkin: prevUser.equippedSkin || oldData.equippedSkin || 'default'
                         };
                         localStorage.setItem('guest_data', JSON.stringify(updatedGuest));
                         return updatedGuest;
@@ -333,26 +347,37 @@ function App() {
                     {arenaWinner && (
                         <DeathScreen
                             isVictory={true}
+                            isArena={true}
                             killerName={null}
                             score={arenaWinner.score}
                             rank={1}
                             onQuit={() => {
                                 handleQuitToMenu();
-                                socket.fullReset(); // Ensure full reset on quit
+                                socket.fullReset();
                             }}
-                            onRespawn={null} // No respawn in Arena
+                            onRespawn={() => {
+                                setArenaWinner(null);
+                                setIsDead(false);
+                                socket.fullReset();
+                                handleStartArena(user?.equippedSkin);
+                            }}
                         />
                     )}
 
-                    {/* Death screen - no respawn */}
+                    {/* Death screen - with play again */}
                     {isDead && !arenaWinner && (
                         <DeathScreen
                             isVictory={false}
+                            isArena={true}
                             killerName={killerName}
                             score={finalScore}
                             rank={arenaRank}
                             onQuit={handleQuitToMenu}
-                            onRespawn={null}
+                            onRespawn={() => {
+                                setIsDead(false);
+                                socket.fullReset();
+                                handleStartArena(user?.equippedSkin);
+                            }}
                         />
                     )}
                 </>

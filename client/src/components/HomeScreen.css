@@ -382,3 +382,569 @@
     color: #FFD700;
     font-weight: bold;
 }
+
+/* Stats Section (matching leaderboard style) */
+.stats-section {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.stats-section-title {
+    color: #FFD700;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 16px;
+    margin: 0;
+    background: rgba(255, 215, 0, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stats-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 14px;
+}
+
+.stats-row:last-child {
+    border-bottom: none;
+}
+
+.stats-row span:first-child {
+    color: #888;
+}
+
+.stats-value {
+    font-weight: 600;
+    color: #fff;
+}
+
+.stats-value.gold {
+    color: #FFD700;
+}
+
+.rank-gold {
+    color: #FFD700;
+    font-weight: 600;
+}
+
+.rank-normal {
+    color: #666;
+}
+
+/* Nav spacer and divider for Settings */
+.nav-spacer {
+    flex: 1;
+}
+
+.nav-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 10px 20px;
+}
+
+/* Settings */
+.settings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.settings-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 25px;
+}
+
+.settings-subtitle {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #fff;
+}
+
+.settings-desc {
+    font-size: 14px;
+    color: #888;
+    margin: 0 0 20px 0;
+}
+
+.settings-row {
+    display: flex;
+    gap: 12px;
+}
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-input {
+    flex: 1;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.settings-input:focus {
+    border-color: #FFD700;
+}
+
+.settings-btn {
+    padding: 12px 24px;
+    background: #FFD700;
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.settings-btn:hover {
+    background: #FFC000;
+    transform: translateY(-1px);
+}
+
+.settings-guest-message {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
+
+.settings-guest-message p {
+    margin: 10px 0;
+}
+
+/* Settings Sub-tabs */
+.settings-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 25px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 5px;
+    border-radius: 8px;
+}
+
+.settings-tab {
+    flex: 1;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.settings-tab:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-tab.active {
+    background: #FFD700;
+    color: #000;
+}
+
+/* Settings Select */
+.settings-select {
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    width: 100%;
+    cursor: pointer;
+}
+
+.settings-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Settings Info */
+.settings-info {
+    padding: 12px 16px;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 6px;
+    color: #FFD700;
+    font-weight: 600;
+}
+
+/* Credits */
+.credits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.credit-item {
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* Account Info */
+.account-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
+.info-label {
+    color: #888;
+}
+
+.info-value {
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Danger Zone */
+.danger-section {
+    border-color: rgba(255, 68, 68, 0.3) !important;
+    background: rgba(255, 68, 68, 0.05) !important;
+}
+
+.danger-text {
+    color: #FF4444 !important;
+}
+
+.danger-btn {
+    background: #FF4444 !important;
+    color: #fff !important;
+}
+
+.danger-btn:hover {
+    background: #FF6666 !important;
+}
+
+/* Controls Grid */
+.controls-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
+.control-action {
+    color: #aaa;
+}
+
+.control-key {
+    color: #FFD700;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+/* === COMPACT SETTINGS STYLES === */
+.settings-container-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.settings-section-compact {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 15px 20px;
+}
+
+.settings-row-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.settings-label {
+    color: #aaa;
+    font-size: 14px;
+}
+
+.settings-select-sm {
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+}
+
+.credits-compact {
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    color: #888;
+}
+
+/* Account Compact */
+.account-info-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.info-row-compact {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.info-row-compact span {
+    color: #888;
+}
+
+.info-row-compact strong {
+    color: #fff;
+}
+
+.account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.account-action-btn {
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #aaa;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.account-action-btn:hover {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: #FFD700;
+    color: #FFD700;
+}
+
+.danger-btn-sm {
+    border-color: rgba(255, 68, 68, 0.3) !important;
+    color: #FF6666 !important;
+}
+
+.danger-btn-sm:hover {
+    background: rgba(255, 68, 68, 0.1) !important;
+    border-color: #FF4444 !important;
+}
+
+.settings-guest-message-compact {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+    font-size: 14px;
+}
+
+/* Controls Compact */
+.controls-grid-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.control-row-compact {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.control-row-compact span:first-child {
+    color: #888;
+}
+
+.control-row-compact span:last-child {
+    color: #FFD700;
+    font-family: monospace;
+}
+
+/* Account Modal */
+.account-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 20, 20, 0.98);
+    padding: 25px 30px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    width: 320px;
+    z-index: 25;
+}
+
+.account-modal h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+}
+
+.account-modal p {
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0 0 15px 0;
+}
+
+.account-modal .modal-input {
+    margin-bottom: 10px;
+}
+
+.modal-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.modal-btn-cancel {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid #444;
+    color: #888;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-btn-cancel:hover {
+    border-color: #666;
+    color: #fff;
+}
+
+.modal-btn-primary {
+    flex: 1;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: none;
+    color: #000;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+.modal-btn-danger {
+    flex: 1;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #FF4444, #CC0000);
+    border: none;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+}
+
+/* Version Text */
+.version-text {
+    position: fixed;
+    bottom: 15px;
+    left: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #FFD700;
+    z-index: 5;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    text-align: center;
+}
+
+.version-number {
+    font-size: 16px;
+    margin-bottom: 2px;
+}
+
+.developer-text {
+    font-size: 15px;
+    font-weight: 400;
+    color: #666;
+    margin-top: 2px;
+    text-shadow: none;
+}
+
+/* Tips List */
+.tips-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tip-item {
+    padding: 8px 12px;
+    background: rgba(255, 215, 0, 0.05);
+    border-left: 2px solid #FFD700;
+    font-size: 13px;
+    color: #aaa;
+}
+
+/* Credits Row */
+.credits-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.credits-row span:last-child {
+    color: #FFD700;
+    font-weight: 600;
+}

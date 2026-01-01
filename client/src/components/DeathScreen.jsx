@@ -1,60 +1,86 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import './DeathScreen.css';
+
+// Random quotes about weapons and items
+const DEATH_QUOTES = [
+    "The Plasma Blaster fires balanced shots with 3-round magazines.",
+    "Heavy Cannon deals 3 damage per shot but requires you to stand still.",
+    "Rapid Laser shoots fast with 6 rounds, perfect for close combat.",
+    "Energy Shield grants 5 seconds of invulnerability.",
+    "Speed Boost doubles your velocity for 5 seconds.",
+    "Space Mine detonates when enemies get close, dealing 3 damage.",
+    "Cloaking Device makes you invisible for 5 seconds.",
+    "Health Pack restores 1 life when picked up.",
+    "Gold coins are rare but worth 5 coins each.",
+    "Dash to blink forward and dodge enemy fire.",
+    "Destroy space stations to get more loot drops.",
+    "Stay inside the zone or take constant damage!",
+    "Save coins to unlock new ship skins in the shop."
+];
 
 const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, rank = null, isVictory = false }) => {
 
-    // Kiểm tra xem có phải tự sát không?
     const isSuicide = !killerName || killerName === 'Yourself';
+
+    // Random quote - memoized so it doesn't change on re-render
+    const randomQuote = useMemo(() => {
+        return DEATH_QUOTES[Math.floor(Math.random() * DEATH_QUOTES.length)];
+    }, []);
 
     return (
         <div className={`death-screen-container ${isVictory ? 'victory-mode' : ''}`}>
 
             {/* Tiêu đề */}
             <h1 className={`death-title ${isVictory ? 'victory-text' : ''}`}>
-                {isVictory ? 'VICTORY' : (isArena ? 'ELIMINATED' : 'YOU DIED')}
+                {isVictory ? 'VICTORY' : 'YOU DIED'}
             </h1>
 
-            {/* Thông tin kẻ giết (Chỉ hiện khi chết) */}
-            {!isVictory && (
-                <div className="death-info">
-                    {isSuicide && !isArena ? (
-                        <span>💔 You eliminated yourself!</span>
+            {/* Combined info box - quote inside */}
+            <div className="death-content-box">
+                {/* Thông tin kẻ giết hoặc Victory message */}
+                {isVictory ? (
+                    <div className="death-info-row victory-info">
+                        YOU ARE THE CHAMPION!
+                    </div>
+                ) : (
+                    <div className="death-info-row">
+                        {isSuicide && !isArena ? (
+                            <span>💔 You eliminated yourself!</span>
+                        ) : (
+                            <span>
+                                Eliminated by <strong className="killer-name">{killerName || 'Unknown'}</strong>
+                            </span>
+                        )}
+                    </div>
+                )}
+
+                {/* Divider */}
+                <div className="death-divider"></div>
+
+                {/* Điểm số / Rank */}
+                <div className="death-score-row">
+                    {rank !== null && rank !== undefined ? (
+                        <>
+                            <span className="stat-label">RANK</span>
+                            <span className="stat-value" style={{ color: isVictory || rank === 1 ? '#FFD700' : '#FFF' }}>
+                                #{rank}
+                            </span>
+                        </>
                     ) : (
-                        <span>
-                            Eliminated by: <strong className="killer-name">{killerName || 'Unknown'}</strong>
-                        </span>
+                        <>
+                            <span className="stat-label">SCORE</span>
+                            <span className="stat-value">{score}</span>
+                        </>
                     )}
                 </div>
-            )}
 
-            {/* Thông tin Victory */}
-            {isVictory && (
-                <div className="death-info">
-                    <span style={{ color: '#FFD700', fontSize: '24px', fontWeight: 'bold' }}>
-                        YOU ARE THE CHAMPION!
-                    </span>
+                {/* Divider */}
+                <div className="death-divider"></div>
+
+                {/* Random Quote - inside box */}
+                <div className="death-quote">
+                    {randomQuote}
                 </div>
-            )}
-
-            {/* Điểm số / Rank */}
-            <div className="final-score-box">
-                {rank !== null && rank !== undefined ? (
-                    <>
-                        <span className="score-label">RANK</span>
-                        <strong className="score-value" style={{ color: isVictory ? '#FFD700' : (rank === 1 ? '#FFD700' : '#FFF') }}>
-                            #{rank}
-                        </strong>
-                    </>
-                ) : (
-                    <>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <div style={{ marginBottom: '5px' }}>
-                                <span className="score-label">SCORE</span>
-                                <strong className="score-value">{score}</strong>
-                            </div>
-                        </div>
-                    </>
-                )}
             </div>
 
             {/* Nút bấm */}
@@ -72,7 +98,7 @@ const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, ra
                     onClick={onQuit}
                     className="death-btn quit-btn"
                 >
-                    {isArena ? 'MENU' : 'EXIT'}
+                    MENU
                 </button>
             </div>
         </div>

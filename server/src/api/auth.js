@@ -76,11 +76,19 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Update displayName if provided
-        if (displayName && displayName !== user.displayName) {
-            user.displayName = displayName;
+        // Update displayName ONLY if provided AND non-empty
+        const trimmedDisplayName = displayName ? displayName.trim() : '';
+        if (trimmedDisplayName && trimmedDisplayName !== user.displayName) {
+            user.displayName = trimmedDisplayName;
             await user.save();
         }
+
+        // Determine in-game name:
+        // - If user has displayName (in DB, not empty) → use displayName
+        // - Otherwise → use username
+        const effectiveDisplayName = (user.displayName && user.displayName.trim())
+            ? user.displayName
+            : null;
 
         // Generate token
         const token = jwt.sign({ id: user._id }, config.JWT_SECRET, {
@@ -92,7 +100,7 @@ router.post('/login', async (req, res) => {
             user: {
                 id: user._id,
                 username: user.username,
-                displayName: user.displayName || user.username, // Ensure fallback
+                displayName: effectiveDisplayName, // Can be null if not set
                 email: user.email,
                 highScore: user.highScore || 0,
                 coins: user.coins || 0,
@@ -130,6 +138,105 @@ router.get('/profile', async (req, res) => {
         res.json({ user });
     } catch (error) {
         res.status(401).json({ error: 'Invalid token' });
+    }
+});
+
+// Update profile (display name)
+router.post('/update-profile', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        const user = await User.findById(decoded.id);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const { displayName } = req.body;
+
+        if (displayName !== undefined) {
+            user.displayName = displayName.trim();
+            await user.save();
+        }
+
+        res.json({
+            success: true,
+            user: {
+                displayName: user.displayName
+            }
+        });
+    } catch (error) {
+        console.error('Update profile error:', error);
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
+});
+
+// Change password
+router.post('/change-password', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        const user = await User.findById(decoded.id);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const { currentPassword, newPassword } = req.body;
+
+        // Verify current password
+        const isMatch = await user.comparePassword(currentPassword);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Current password is incorrect' });
+        }
+
+        // Validate new password
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ error: 'New password must be at least 6 characters' });
+        }
+
+        // Update password (will be hashed by pre-save hook)
+        user.password = newPassword;
+        await user.save();
+
+        res.json({ success: true, message: 'Password changed successfully' });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ error: 'Failed to change password' });
+    }
+});
+
+// Delete account
+router.delete('/delete-account', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        const user = await User.findById(decoded.id);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Delete the user account
+        await User.findByIdAndDelete(decoded.id);
+
+        console.log(`[Auth] Account deleted: ${user.username}`);
+        res.json({ success: true, message: 'Account deleted successfully' });
+    } catch (error) {
+        console.error('Delete account error:', error);
+        res.status(500).json({ error: 'Failed to delete account' });
     }
 });
 

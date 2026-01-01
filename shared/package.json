@@ -6,6 +6,8 @@
   "exports": {
     ".": "./src/index.js",
     "./constants": "./src/constants.js",
-    "./packetTypes": "./src/packetTypes.js"
+    "./packetTypes": "./src/packetTypes.js",
+    "./utils": "./src/utils.js",
+    "./*": "./src/*.js"
   }
 }

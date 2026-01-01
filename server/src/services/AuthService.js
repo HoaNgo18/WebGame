@@ -47,7 +47,8 @@ export class AuthService {
             if (authResult) {
                 userId = authResult.userId;
                 user = authResult.user;
-                playerName = user.displayName || user.username;
+                // Use displayName if it exists and is not empty, otherwise use username
+                playerName = (user.displayName && user.displayName.trim()) || user.username || playerName;
                 userSkin = user.equippedSkin || 'default';
             }
         }

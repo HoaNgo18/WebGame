@@ -216,17 +216,31 @@ export class MessageHandler {
      */
     async handleEquipSkin(clientId, skinId) {
         const client = this.server.clients.get(clientId);
-        if (!client?.userId) return;
+        if (!client) return;
 
-        const result = await SkinService.equipSkin(client.userId, skinId);
+        // For registered users with userId - save to database
+        if (client.userId) {
+            const result = await SkinService.equipSkin(client.userId, skinId);
 
-        if (result.success) {
+            if (result.success) {
+                this.server.sendToClient(clientId, {
+                    type: 'USER_DATA_UPDATE',
+                    equippedSkin: result.equippedSkin
+                });
+
+                // Update player skin in game
+                if (client.player) {
+                    client.player.skinId = skinId;
+                }
+            }
+        } else {
+            // For guest users - just update locally (no database)
             this.server.sendToClient(clientId, {
                 type: 'USER_DATA_UPDATE',
-                equippedSkin: result.equippedSkin
+                equippedSkin: skinId
             });
 
-            // Update player skin in game
+            // Update player skin in game  
             if (client.player) {
                 client.player.skinId = skinId;
             }

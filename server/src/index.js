@@ -40,14 +40,15 @@ app.listen(PORT, () => {
     console.log(`HTTP API server running on port ${PORT}`);
 });
 
-// Connect to MongoDB
-connectDB().then(() => {
-    console.log('MongoDB connected');
+// Start WebSocket game server immediately (don't wait for MongoDB)
+const gameServer = new Server(config.WS_PORT || 3000);
+gameServer.start();
+console.log(`WebSocket game server started on port ${config.WS_PORT || 3000}`);
 
-    // Start WebSocket game server
-    const gameServer = new Server(config.WS_PORT || 3000);
-    gameServer.start();
+// Connect to MongoDB (optional for development)
+connectDB().then(() => {
+    console.log('MongoDB connected - database features enabled');
 }).catch(err => {
-    console.error('Failed to connect to MongoDB:', err);
-    process.exit(1);
+    console.warn('MongoDB connection failed - running without database features');
+    console.warn('Error:', err.message);
 });
