@@ -15,6 +15,7 @@ export class Game {
         this.players = new Map();
         this.projectiles = [];
         this.explosions = [];
+        this.hitEffects = []; // Track laser hit positions for visual effects
 
         // Initialize Managers
         this.world = new WorldManager();
@@ -207,6 +208,7 @@ export class Game {
             players: Array.from(this.players.values()).map(p => p.serialize()),
             projectiles: this.projectiles.map(p => p.serialize()),
             explosions: this.explosions.map(e => e.serialize()),
+            hitEffects: this.hitEffects, // Send hit effect positions to client
 
             foodsAdded: this.world.delta.foodsAdded,
             foodsRemoved: this.world.delta.foodsRemoved,
@@ -223,5 +225,6 @@ export class Game {
 
         this.server.broadcast(state);
         this.world.resetDelta();
+        this.hitEffects = []; // Clear hit effects after broadcast
     }
 }

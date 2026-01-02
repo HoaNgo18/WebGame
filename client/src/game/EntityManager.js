@@ -12,6 +12,7 @@ export class EntityManager {
         this.chestGroup = scene.add.group();
         this.itemGroup = scene.add.group();
         this.explosionGroup = scene.add.group();
+        this.hitEffectGroup = scene.add.group();
 
         // Data Maps
         this.foods = {};
@@ -397,5 +398,43 @@ export class EntityManager {
 
         this.itemGroup.add(container);
         this.items[itemData.id] = container;
+    }
+
+    // --- HIT EFFECT LOGIC ---
+    updateHitEffects(hitEffectsData) {
+        if (!hitEffectsData || hitEffectsData.length === 0) return;
+
+        hitEffectsData.forEach(hit => {
+            // Choose sprite based on weapon type
+            let spriteKey = 'hitBlue'; // default
+            if (hit.weaponType === 'RED') {
+                spriteKey = 'hitRed';
+            } else if (hit.weaponType === 'GREEN') {
+                spriteKey = 'hitGreen';
+            }
+
+            // Create hit effect sprite
+            const hitSprite = this.scene.add.sprite(hit.x, hit.y, spriteKey);
+            hitSprite.setDepth(15); // Higher depth to be more visible
+            hitSprite.setScale(0.5); // Start smaller
+            hitSprite.setAlpha(1);
+            hitSprite.setTint(0xFFFFFF); // Bright white tint for visibility
+
+            // Random rotation for variety
+            hitSprite.setRotation(Math.random() * Math.PI * 2);
+
+            // Scale up + fade out animation (smaller final size)
+            this.scene.tweens.add({
+                targets: hitSprite,
+                scaleX: 0.8,
+                scaleY: 0.8,
+                alpha: 0,
+                duration: 250, // Slightly faster
+                ease: 'Power2',
+                onComplete: () => hitSprite.destroy()
+            });
+
+            this.hitEffectGroup.add(hitSprite);
+        });
     }
 }

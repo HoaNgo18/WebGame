@@ -35,6 +35,7 @@ export class ArenaRoom {
         // Game state
         this.projectiles = [];
         this.explosions = [];
+        this.hitEffects = []; // Track laser hit positions for visual effects
         this.world = new WorldManager();
         this.physics = new Physics(this);
 
@@ -508,6 +509,7 @@ export class ArenaRoom {
             players: this.playerManager.serializeAlive(),
             projectiles: this.projectiles.map(p => p.serialize()),
             explosions: this.explosions.map(e => e.serialize()),
+            hitEffects: this.hitEffects, // Send hit effect positions to client
             aliveCount: this.getTotalAliveCount(),
             zone: this.zoneManager.serialize()
         };
@@ -516,6 +518,7 @@ export class ArenaRoom {
 
         this.broadcast(state);
         this.world.resetDelta();
+        this.hitEffects = []; // Clear hit effects after broadcast
     }
 
     addWorldDelta(state) {

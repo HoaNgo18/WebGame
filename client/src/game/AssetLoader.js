@@ -40,6 +40,11 @@ export class AssetLoader {
         scene.load.image('laserBlue01', '/Lasers/laserBlue05.png');
         scene.load.image('laserGreen01', '/Lasers/laserGreen13.png');
         scene.load.image('laserRed01', '/Lasers/laserRed16.png');
+
+        // Hit effects
+        scene.load.image('hitBlue', '/Lasers/laserBlue08.png');
+        scene.load.image('hitGreen', '/Lasers/laserGreen14.png');
+        scene.load.image('hitRed', '/Lasers/laserRed08.png');
         scene.load.image('star1', '/Effects/star1.png');
         scene.load.image('star2', '/Effects/star2.png');
         scene.load.image('shield', '/Effects/shield3.png');

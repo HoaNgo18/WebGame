@@ -151,6 +151,8 @@ export class CollisionDetector {
             if (circleCollision(player.x, player.y, player.radius || SHIP_RADIUS, proj.x, proj.y, proj.radius)) {
                 this.resolver.hitPlayer(player, proj);
                 proj.hit = true;
+                // Emit hit effect
+                this.game.hitEffects.push({ x: proj.x, y: proj.y, weaponType: proj.weaponType });
                 return true;
             }
         }
@@ -160,6 +162,8 @@ export class CollisionDetector {
     checkProjectileVsObstacles(proj, obstacles) {
         for (const obs of obstacles) {
             if (distance(proj.x, proj.y, obs.x, obs.y) < proj.radius + obs.radius) {
+                // Emit hit effect
+                this.game.hitEffects.push({ x: proj.x, y: proj.y, weaponType: proj.weaponType });
                 return true;
             }
         }
@@ -177,6 +181,8 @@ export class CollisionDetector {
 
             if (isHit) {
                 this.resolver.hitChest(chest, proj);
+                // Emit hit effect
+                this.game.hitEffects.push({ x: proj.x, y: proj.y, weaponType: proj.weaponType });
                 return true;
             }
         }

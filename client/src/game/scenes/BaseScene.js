@@ -93,6 +93,7 @@ export class BaseScene extends Phaser.Scene {
         this.entityManager.updateExplosions(packet.explosions);
         this.entityManager.updateChests(packet);
         this.entityManager.updateItems(packet);
+        this.entityManager.updateHitEffects(packet.hitEffects);
     }
 
     // --- CÁC HÀM PLAYER HELPER ---
