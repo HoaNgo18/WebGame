@@ -71,8 +71,11 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     // Note: USER_DATA_UPDATE is handled by App.jsx which updates the `user` prop
     // HomeScreen just syncs localUser from the prop - no separate listener needed
 
+    // Load leaderboard when tab changes to leaderboard
     useEffect(() => {
-        if (activeTab === 'leaderboard') loadLeaderboard();
+        if (activeTab === 'leaderboard') {
+            loadLeaderboard();
+        }
     }, [activeTab]);
 
     const loadSkins = () => {
@@ -91,21 +94,31 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     };
 
     const loadLeaderboard = async () => {
+        console.log('[HomeScreen] Loading leaderboard from:', API_URL);
         try {
             // Fetch Endless leaderboard (top 3 by highScore)
             const endlessRes = await fetch(`${API_URL}/leaderboard?type=endless&limit=3`);
+            console.log('[HomeScreen] Endless response status:', endlessRes.status);
             if (endlessRes.ok) {
                 const data = await endlessRes.json();
-                setEndlessLeaderboard(data.players || []);
+                console.log('[HomeScreen] Endless data:', data);
+                // Handle both {players: [...]} and direct array format
+                const players = data.players || data || [];
+                setEndlessLeaderboard(players);
             }
 
             // Fetch Arena leaderboard (top 3 by arenaWins)
             const arenaRes = await fetch(`${API_URL}/leaderboard?type=arena&limit=3`);
+            console.log('[HomeScreen] Arena response status:', arenaRes.status);
             if (arenaRes.ok) {
                 const data = await arenaRes.json();
-                setArenaLeaderboard(data.players || []);
+                console.log('[HomeScreen] Arena data:', data);
+                // Handle both {players: [...]} and direct array format
+                const players = data.players || data || [];
+                setArenaLeaderboard(players);
             }
         } catch (err) {
+            console.error('[HomeScreen] Leaderboard error:', err);
             setEndlessLeaderboard([]);
             setArenaLeaderboard([]);
         }
@@ -402,15 +415,18 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
                                     {/* Endless Mode Top 3 */}
                                     <div className="stats-section">
-                                        <h3 className="stats-section-title">ENDLESS MODE</h3>
+                                        <div className="stats-section-title">
+                                            <span>ENDLESS MODE</span>
+                                            <span className="title-hint">High Score</span>
+                                        </div>
                                         <div className="stats-list">
-                                            {endlessLeaderboard.map((p, idx) => (
+                                            {endlessLeaderboard.slice(0, 3).map((p, idx) => (
                                                 <div key={idx} className="stats-row">
                                                     <span>
-                                                        <span className={idx < 3 ? 'rank-gold' : 'rank-normal'}>#{p.rank}</span>
-                                                        {' '}{p.username}
+                                                        <span className="rank-gold">#{idx + 1}</span>
+                                                        {' '}{p.displayName || p.username || 'Unknown'}
                                                     </span>
-                                                    <span className="stats-value gold">{p.score}</span>
+                                                    <span className="stats-value gold">{p.score ?? p.highScore ?? 0}</span>
                                                 </div>
                                             ))}
                                             {endlessLeaderboard.length === 0 && <div className="stats-row" style={{ justifyContent: 'center', color: '#666' }}>No data yet</div>}
@@ -419,15 +435,18 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
                                     {/* Arena Mode Top 3 */}
                                     <div className="stats-section">
-                                        <h3 className="stats-section-title">ARENA MODE</h3>
+                                        <div className="stats-section-title">
+                                            <span>ARENA MODE</span>
+                                            <span className="title-hint">Top 1 Wins</span>
+                                        </div>
                                         <div className="stats-list">
-                                            {arenaLeaderboard.map((p, idx) => (
+                                            {arenaLeaderboard.slice(0, 3).map((p, idx) => (
                                                 <div key={idx} className="stats-row">
                                                     <span>
-                                                        <span className={idx < 3 ? 'rank-gold' : 'rank-normal'}>#{p.rank}</span>
-                                                        {' '}{p.username}
+                                                        <span className="rank-gold">#{idx + 1}</span>
+                                                        {' '}{p.displayName || p.username || 'Unknown'}
                                                     </span>
-                                                    <span className="stats-value gold">{p.score} wins</span>
+                                                    <span className="stats-value gold">{p.score ?? p.arenaWins ?? 0}</span>
                                                 </div>
                                             ))}
                                             {arenaLeaderboard.length === 0 && <div className="stats-row" style={{ justifyContent: 'center', color: '#666' }}>No data yet</div>}

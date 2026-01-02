@@ -392,6 +392,9 @@
 }
 
 .stats-section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     color: #FFD700;
     font-size: 14px;
     font-weight: 600;
@@ -399,6 +402,12 @@
     margin: 0;
     background: rgba(255, 215, 0, 0.05);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.title-hint {
+    font-size: 12px;
+    font-weight: 400;
+    color: #888;
 }
 
 .stats-list {
@@ -429,6 +438,14 @@
 
 .stats-value.gold {
     color: #FFD700;
+}
+
+.stats-header {
+    color: #666;
+    font-size: 12px;
+    font-style: italic;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .rank-gold {
