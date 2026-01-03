@@ -45,6 +45,15 @@ export class AssetLoader {
         scene.load.image('hitBlue', '/Lasers/laserBlue08.png');
         scene.load.image('hitGreen', '/Lasers/laserGreen14.png');
         scene.load.image('hitRed', '/Lasers/laserRed08.png');
+
+        // Audio
+        scene.load.audio('bgm', '/sounds/Blind Shift.mp3');
+        scene.load.audio('bomb', '/sounds/bomb.mp3');
+        scene.load.audio('death', '/sounds/deathsound.ogg');
+        scene.load.audio('engine', '/sounds/engine_sound.mp3');
+        scene.load.audio('laser', '/sounds/laserRetro_001.ogg');
+        scene.load.audio('pickup', '/sounds/pickupitem.wav');
+        scene.load.audio('win', '/sounds/win.ogg');
         scene.load.image('star1', '/Effects/star1.png');
         scene.load.image('star2', '/Effects/star2.png');
         scene.load.image('shield', '/Effects/shield3.png');

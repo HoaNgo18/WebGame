@@ -23,6 +23,13 @@ const HUD = ({ isArena = false }) => {
     const [aliveCount, setAliveCount] = useState(10);
     const [pickupNotif, setPickupNotif] = useState(null);
 
+    const [minimapData, setMinimapData] = useState({
+        enemies: [],
+        items: [],
+        stations: [],
+        zone: null
+    });
+
     // Use interval to poll data from gameScene
     // Giảm throttle để inventory responsive hơn
     useEffect(() => {
@@ -101,10 +108,34 @@ const HUD = ({ isArena = false }) => {
                     const alive = scene.aliveCount !== undefined ? scene.aliveCount : 10;
                     setAliveCount(alive);
                 }
+
+                // MINIMAP DATA UPDATE
+                // Throttle this less frequently (e.g., every 2nd tick or just use the 100ms)
+                // For now, 100ms is fine for smooth movement
+                const enemies = Object.values(scene.players)
+                    .filter(p => !p.dead && p.id !== socket.myId)
+                    .map(p => ({ x: p.x, y: p.y, id: p.id }));
+
+                const items = scene.entityManager?.items
+                    ? Object.values(scene.entityManager.items).map(i => ({ x: i.x, y: i.y, id: i.id }))
+                    : [];
+
+                const stations = scene.entityManager?.chests
+                    ? Object.values(scene.entityManager.chests).map(c => ({ x: c.x, y: c.y, id: c.id }))
+                    : [];
+
+                const zone = scene.zone ? { x: scene.zone.x, y: scene.zone.y, radius: scene.zone.radius } : null;
+
+                setMinimapData({
+                    enemies,
+                    items,
+                    stations,
+                    zone
+                });
             }
 
             setIsConnected(socket.isConnected);
-        }, 250);
+        }, 100); // Poll every 100ms
 
         const unsubscribe = socket.subscribe((packet) => {
             if (packet.type === 'ITEM_PICKED_UP' && packet.playerId === socket.myId) {
@@ -138,6 +169,11 @@ const HUD = ({ isArena = false }) => {
         };
     };
 
+    // Scale zone radius to minimap
+    const zoneRadiusToMinimap = (radius) => {
+        return (radius / MAP_SIZE) * MINIMAP_SIZE;
+    };
+
     const getAmmoColor = () => {
         const weaponStats = WEAPON_STATS[stats.weapon];
         return weaponStats ? '#' + weaponStats.color.toString(16).padStart(6, '0') : '#00E5FF';
@@ -156,6 +192,10 @@ const HUD = ({ isArena = false }) => {
 
     const myMinimapPos = worldToMinimap(myPos.x, myPos.y);
     const kingMinimapPos = kingPos ? worldToMinimap(kingPos.x, kingPos.y) : null;
+    const minimapZone = minimapData.zone ? {
+        ...worldToMinimap(minimapData.zone.x, minimapData.zone.y),
+        radius: zoneRadiusToMinimap(minimapData.zone.radius)
+    } : null;
 
     return (
         <div className="hud-container">
@@ -237,6 +277,34 @@ const HUD = ({ isArena = false }) => {
             <div className="hud-minimap" style={{ width: `${MINIMAP_SIZE}px`, height: `${MINIMAP_SIZE}px` }}>
                 <div className="minimap-axis h"></div>
                 <div className="minimap-axis v"></div>
+
+                {/* Enemies */}
+                {minimapData.enemies.map(p => {
+                    const pos = worldToMinimap(p.x, p.y);
+                    return <div key={p.id} className="minimap-enemy" style={{ left: pos.left, top: pos.top }} />;
+                })}
+
+                {/* Items */}
+                {minimapData.items.map(i => {
+                    const pos = worldToMinimap(i.x, i.y);
+                    return <div key={i.id} className="minimap-item" style={{ left: pos.left, top: pos.top }} />;
+                })}
+
+                {/* Stations */}
+                {minimapData.stations.map(s => {
+                    const pos = worldToMinimap(s.x, s.y);
+                    return <div key={s.id} className="minimap-station" style={{ left: pos.left, top: pos.top }} />;
+                })}
+
+                {/* Zone (Arena) */}
+                {minimapZone && (
+                    <div className="minimap-zone" style={{
+                        left: minimapZone.left,
+                        top: minimapZone.top,
+                        width: minimapZone.radius * 2,
+                        height: minimapZone.radius * 2
+                    }} />
+                )}
 
                 <div className="minimap-player" style={{ left: myMinimapPos.left, top: myMinimapPos.top }} />
 

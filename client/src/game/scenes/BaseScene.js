@@ -7,6 +7,7 @@ import { WEAPON_STATS, MAP_SIZE } from 'shared/constants';
 import { AssetLoader } from '../AssetLoader';
 import { InputManager } from '../InputManager';
 import { EntityManager } from '../EntityManager';
+import { SoundManager } from '../SoundManager';
 
 export class BaseScene extends Phaser.Scene {
     constructor(key) {
@@ -14,6 +15,7 @@ export class BaseScene extends Phaser.Scene {
         this.players = {};
         this.entityManager = null;
         this.inputManager = null;
+        this.soundManager = null;
         this.rangeCircle = null;
         this.isArena = false; // Mặc định là Endless
     }
@@ -30,6 +32,11 @@ export class BaseScene extends Phaser.Scene {
         // 2. Initialize Managers
         this.entityManager = new EntityManager(this);
         this.inputManager = new InputManager(this);
+        this.soundManager = new SoundManager(this);
+
+        // Start Engine Sound (muted initially)
+        // Note: BGM is now handled globally by BackgroundMusic.jsx
+        this.soundManager.startEngine();
 
         // 3. UI Helpers
         this.createRangeCircle();
@@ -53,6 +60,18 @@ export class BaseScene extends Phaser.Scene {
         // Send Input
         const inputData = this.inputManager.getInputData();
         socket.send({ type: PacketType.INPUT, data: inputData });
+
+        // Update Engine Sound
+        if (this.soundManager && socket.myId && this.players[socket.myId]) {
+            const myPlayer = this.players[socket.myId];
+            // Check if moving (either by input or server state)
+            const isMoving = myPlayer.isMoving ||
+                this.inputManager.keys.W.isDown ||
+                this.inputManager.keys.A.isDown ||
+                this.inputManager.keys.S.isDown ||
+                this.inputManager.keys.D.isDown;
+            this.soundManager.updateEngine(isMoving);
+        }
     }
 
     // --- LOGIC XỬ LÝ SERVER CHUNG ---

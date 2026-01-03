@@ -5,6 +5,7 @@ import { ArenaScene } from './game/scenes/ArenaScene';
 import HUD from './components/HUD';
 import DeathScreen from './components/DeathScreen';
 import HomeScreen from './components/HomeScreen';
+import BackgroundMusic from './components/BackgroundMusic';
 import { socket } from './network/socket';
 import { PacketType } from 'shared/packetTypes';
 import './components/ArenaUI.css';
@@ -286,6 +287,7 @@ function App() {
 
     return (
         <div className="App">
+            <BackgroundMusic />
             {gameState === 'home' && (
                 <HomeScreen
                     user={user}

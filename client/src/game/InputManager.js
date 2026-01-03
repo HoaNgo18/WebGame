@@ -27,21 +27,34 @@ export class InputManager {
     setupEventListeners() {
         // Mouse click -> Attack (via GameActions)
         this.scene.input.on('pointerdown', () => {
+            const myPlayer = this.scene.players[this.scene.socket?.myId];
+
+            // Validate ability to shoot
+            const canShoot = myPlayer && !myPlayer.dead && (myPlayer.currentAmmo === undefined || myPlayer.currentAmmo > 0);
+
+            if (canShoot) {
+                // Play shoot sound
+                if (this.scene.soundManager) {
+                    const weaponType = myPlayer.weaponType || 'BLUE';
+                    this.scene.soundManager.playShoot(weaponType);
+                }
+            }
+
             GameActions.attack();
         });
 
         // Space -> Use Item (via GameActions)
-        this.scene.input.keyboard.on('keydown-SPACE', () => {
+        this.keys.SPACE.on('down', () => {
             GameActions.useItem();
         });
 
         // Slot selection (via GameActions)
-        const slotKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'];
-        slotKeys.forEach((key, index) => {
-            this.scene.input.keyboard.on(`keydown-${key}`, () => {
-                GameActions.selectSlot(index);
-            });
-        });
+        // Ensure keys are captured correctly
+        this.keys.ONE.on('down', () => GameActions.selectSlot(0));
+        this.keys.TWO.on('down', () => GameActions.selectSlot(1));
+        this.keys.THREE.on('down', () => GameActions.selectSlot(2));
+        this.keys.FOUR.on('down', () => GameActions.selectSlot(3));
+        this.keys.FIVE.on('down', () => GameActions.selectSlot(4));
     }
 
     getInputData() {

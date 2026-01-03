@@ -191,7 +191,47 @@
     position: absolute;
     top: -10px;
     left: -3px;
-    font-size: 10px;
+    font-size: 14px;
+    animation: pulse 1s infinite;
+}
+
+/* Minimap Entities */
+.minimap-enemy {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background-color: #FF4444;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 2px #FF0000;
+}
+
+.minimap-item {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background-color: #FFD700;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.minimap-station {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background-color: #00E5FF;
+    border: 1px solid #FFF;
+    border-radius: 2px; /* Square for stations */
+    transform: translate(-50%, -50%);
+}
+
+.minimap-zone {
+    position: absolute;
+    border: 1px solid rgba(255, 0, 0, 0.5);
+    background-color: rgba(255, 0, 0, 0.1);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
 }
 
 /* Notification */

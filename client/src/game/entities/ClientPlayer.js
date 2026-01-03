@@ -241,6 +241,32 @@ export class ClientPlayer {
                 this.setAlphaState(1);
             }
         }
+
+        // Sound for Item Application (When Shield or Speed or Invisible activates)
+        // We detect this by checking changes in state or flags
+        if (this.isMe && this.scene.soundManager) {
+            // Shield activated
+            if (data.hasShield && !this.lastHasShield) {
+                this.scene.soundManager.playItemApply('SHIELD');
+            }
+            // Speed up activated
+            if (data.isSpeedUp && !this.lastIsSpeedUp) {
+                this.scene.soundManager.playItemApply('SPEED');
+            }
+            // Invisible activated
+            if (isHidden && !this.lastIsHidden) {
+                this.scene.soundManager.playItemApply('HIDDEN');
+            }
+
+            // Update last states
+            this.lastHasShield = data.hasShield;
+            this.lastIsSpeedUp = data.isSpeedUp;
+            this.lastIsHidden = isHidden;
+
+            // Also detection for medkit/ammo refill?
+            // Usually reflected in lives/ammo increase, but might be too spammy.
+            // Let's stick to active effects for now.
+        }
     }
 
     tick(dt) {

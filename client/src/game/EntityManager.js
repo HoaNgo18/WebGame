@@ -136,6 +136,11 @@ export class EntityManager {
      * Tạo explosion effect với multiple layers
      */
     createExplosionEffect(x, y, radius) {
+        // Play explosion sound
+        if (this.scene.soundManager) {
+            this.scene.soundManager.playExplosion();
+        }
+
         // Layer 1: Core flash (trắng sáng)
         const coreFlash = this.scene.add.circle(x, y, radius * 0.3, 0xFFFFFF, 1);
         this.scene.tweens.add({
@@ -342,6 +347,10 @@ export class EntityManager {
             packet.itemsRemoved.forEach(rawId => {
                 const id = String(rawId);
                 if (this.items[id]) {
+                    // Play pickup sound
+                    if (this.scene.soundManager) {
+                        this.scene.soundManager.playPickup();
+                    }
                     this.items[id].destroy();
                     delete this.items[id];
                 }
@@ -405,6 +414,11 @@ export class EntityManager {
         if (!hitEffectsData || hitEffectsData.length === 0) return;
 
         hitEffectsData.forEach(hit => {
+            // Play hit sound
+            if (this.scene.soundManager) {
+                this.scene.soundManager.playHit();
+            }
+
             // Choose sprite based on weapon type
             let spriteKey = 'hitBlue'; // default
             if (hit.weaponType === 'RED') {
