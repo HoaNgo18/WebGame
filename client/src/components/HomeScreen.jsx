@@ -508,43 +508,116 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
                             {activeTab === 'account' && (
                                 <div>
-                                    <h2 className="section-title">ACCOUNT MANAGEMENT</h2>
-                                    <div className="settings-container-compact" style={{ marginTop: '20px' }}>
-                                        {localUser && !localUser.isGuest ? (
-                                            <>
-                                                <div className="account-info-compact">
-                                                    <div className="info-row-compact">
-                                                        <span>Username:</span>
-                                                        <strong>{localUser.username}</strong>
-                                                    </div>
-                                                    <div className="info-row-compact">
-                                                        <span>Display Name:</span>
-                                                        <strong>{localUser.displayName || localUser.username}</strong>
-                                                    </div>
-                                                    <div className="info-row-compact">
-                                                        <span>Email:</span>
-                                                        <strong>{localUser.email || 'Not set'}</strong>
-                                                    </div>
-                                                </div>
+                                    <h2 className="section-title">MY ACCOUNT</h2>
 
-                                                <div className="account-actions">
-                                                    <button className="account-action-btn" onClick={() => setAccountModal('displayName')}>
-                                                        Change Display Name
-                                                    </button>
-                                                    <button className="account-action-btn" onClick={() => setAccountModal('password')}>
-                                                        Change Password
-                                                    </button>
-                                                    <button className="account-action-btn danger-btn-sm" onClick={() => setAccountModal('delete')}>
-                                                        Delete Account
+                                    {localUser && !localUser.isGuest ? (
+                                        <div className="account-form-container">
+                                            {/* Username Field */}
+                                            <div className="account-form-field">
+                                                <label className="account-form-label">Username</label>
+                                                <input
+                                                    type="text"
+                                                    className="account-form-input"
+                                                    value={localUser.username}
+                                                    disabled
+                                                    style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                                                />
+                                            </div>
+
+                                            {/* Email Field */}
+                                            <div className="account-form-field">
+                                                <label className="account-form-label">Email</label>
+                                                <input
+                                                    type="email"
+                                                    className="account-form-input"
+                                                    value={localUser.email || ''}
+                                                    onChange={(e) => setLocalUser({ ...localUser, email: e.target.value })}
+                                                    placeholder="your.email@example.com"
+                                                />
+                                            </div>
+
+                                            {/* Password Field */}
+                                            <div className="account-form-field">
+                                                <label className="account-form-label">Password</label>
+                                                <div style={{ position: 'relative' }}>
+                                                    <input
+                                                        type="password"
+                                                        className="account-form-input"
+                                                        value="••••••••"
+                                                        disabled
+                                                        style={{ opacity: 0.6, cursor: 'not-allowed', paddingRight: '45px' }}
+                                                    />
+                                                    <button
+                                                        className="account-action-btn password-change-btn"
+                                                        onClick={() => setAccountModal({ type: 'password' })}
+                                                        title="Change password"
+                                                        style={{
+                                                            position: 'absolute',
+                                                            right: '10px',
+                                                            top: '50%',
+                                                            transform: 'translateY(-50%)',
+                                                            padding: '4px 10px',
+                                                            fontSize: '12px',
+                                                            height: '24px',
+                                                            display: 'flex',
+                                                            alignItems: 'center'
+                                                        }}
+                                                    >
+                                                        ...
                                                     </button>
                                                 </div>
-                                            </>
-                                        ) : (
-                                            <div className="settings-guest-message-compact">
-                                                Account settings require a registered account.
                                             </div>
-                                        )}
-                                    </div>
+
+                                            {/* Display Name with ID */}
+                                            <div className="account-form-field">
+                                                <label className="account-form-label">Display Name</label>
+                                                <div style={{ position: 'relative' }}>
+                                                    <input
+                                                        type="text"
+                                                        className="account-form-input"
+                                                        value={localUser.displayName || ''}
+                                                        onChange={(e) => setLocalUser({ ...localUser, displayName: e.target.value })}
+                                                        placeholder={localUser.username}
+                                                        style={{ paddingRight: '60px' }}
+                                                    />
+                                                    <span style={{
+                                                        position: 'absolute',
+                                                        right: '15px',
+                                                        top: '50%',
+                                                        transform: 'translateY(-50%)',
+                                                        color: '#888',
+                                                        fontSize: '14px',
+                                                        pointerEvents: 'none'
+                                                    }}>
+                                                        #{localUser.tag}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="account-form-actions">
+                                                <button
+                                                    className="account-form-btn save-btn"
+                                                    onClick={() => {
+                                                        // TODO: Save account changes
+                                                        console.log('Saving account changes:', localUser);
+                                                    }}
+                                                >
+                                                    Save Changes
+                                                </button>
+                                                <button
+                                                    className="account-form-btn delete-btn"
+                                                    onClick={() => setAccountModal({ type: 'delete' })}
+                                                >
+                                                    Delete Account
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="settings-guest-message-compact">
+                                            Account settings require a registered account.
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -964,144 +1037,108 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                 )
             }
 
-            {/* Account Modals */}
-            {
-                accountModal && (
-                    <>
-                        <div className="modal-overlay" onClick={() => setAccountModal(null)}></div>
-                        <div className="account-modal">
-                            {/* Change Display Name Modal */}
-                            {accountModal === 'displayName' && (
-                                <>
-                                    <h3>Change Display Name</h3>
-                                    <input
-                                        type="text"
-                                        placeholder="New display name"
-                                        className="modal-input"
-                                        defaultValue={localUser?.displayName || localUser?.username || ''}
-                                        id="modal-display-name"
-                                    />
-                                    <div className="modal-btns">
-                                        <button className="modal-btn-primary" onClick={async () => {
-                                            const input = document.getElementById('modal-display-name');
-                                            const newName = input.value.trim();
-                                            if (!newName) return;
+            {/* Generic Account Modal */}
+            {accountModal && (
+                <>
+                    <div className="modal-overlay" onClick={() => setAccountModal(null)}></div>
+                    <div className="account-modal">
+                        {/* Delete Account Special Case */}
+                        {accountModal.type === 'delete' ? (
+                            <>
+                                <h3 style={{ color: '#FF4444' }}>Delete Account</h3>
+                                <p style={{ color: '#888', marginBottom: '20px' }}>
+                                    This will permanently delete your account and all data. This cannot be undone.
+                                </p>
+                                <div className="modal-btns">
+                                    <button className="modal-btn-danger" onClick={async () => {
+                                        if (!confirm('Are you ABSOLUTELY sure? ALL data will be lost!')) return;
+                                        try {
+                                            const token = localStorage.getItem('game_token');
+                                            const res = await fetch(`${API_URL}/auth/delete-account`, {
+                                                method: 'DELETE',
+                                                headers: { 'Authorization': `Bearer ${token}` }
+                                            });
+                                            if (res.ok) onLogout();
+                                        } catch (err) { console.error('Failed to delete'); }
+                                    }}>Delete My Account</button>
+                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                </div>
+                            </>
+                        ) : accountModal.type === 'password' ? (
+                            /* Change Password Case */
+                            <>
+                                <h3>Change Password</h3>
+                                <input type="password" placeholder="Current Password" id="currentPw" className="modal-input" />
+                                <input type="password" placeholder="New Password (min 6 chars)" id="newPw" className="modal-input" />
+                                <input type="password" placeholder="Confirm New Password" id="confirmPw" className="modal-input" />
+                                <div className="modal-btns">
+                                    <button className="modal-btn-primary" onClick={async () => {
+                                        const currentPw = document.getElementById('currentPw').value;
+                                        const newPw = document.getElementById('newPw').value;
+                                        const confirmPw = document.getElementById('confirmPw').value;
 
-                                            try {
-                                                const token = localStorage.getItem('game_token');
-                                                const res = await fetch(`${API_URL}/auth/update-profile`, {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type': 'application/json',
-                                                        'Authorization': `Bearer ${token}`
-                                                    },
-                                                    body: JSON.stringify({ displayName: newName })
-                                                });
-                                                if (res.ok) {
-                                                    // Update local state immediately
-                                                    const updatedUser = { ...localUser, displayName: newName };
-                                                    setLocalUser(updatedUser);
-                                                    setAccountModal(null);
-                                                }
-                                            } catch (err) {
-                                                console.error('Failed to update display name');
+                                        if (newPw.length < 6) return alert('Password too short');
+                                        if (newPw !== confirmPw) return alert('Passwords do not match!');
+
+                                        try {
+                                            const token = localStorage.getItem('game_token');
+                                            const res = await fetch(`${API_URL}/auth/change-password`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw })
+                                            });
+                                            const data = await res.json();
+                                            if (res.ok) { alert('Password changed!'); setAccountModal(null); }
+                                            else { alert(data.error); }
+                                        } catch (e) { alert('Network error'); }
+                                    }}>Change</button>
+                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                </div>
+                            </>
+
+                        ) : (
+                            /* Generic Field Edit (Username, Email, DisplayName) */
+                            <>
+                                <h3>Change {accountModal.type === 'displayName' ? 'Display Name' : accountModal.type.charAt(0).toUpperCase() + accountModal.type.slice(1)}</h3>
+                                <input
+                                    type={accountModal.type === 'email' ? 'email' : 'text'}
+                                    defaultValue={accountModal.value}
+                                    id="editFieldInput"
+                                    className="modal-input"
+                                />
+                                <div className="modal-btns">
+                                    <button className="modal-btn-primary" onClick={async () => {
+                                        const newVal = document.getElementById('editFieldInput').value;
+                                        if (!newVal) return alert('Value cannot be empty');
+
+                                        try {
+                                            const token = localStorage.getItem('game_token');
+                                            const body = {};
+                                            body[accountModal.type] = newVal; // Dynamic key: username, email, or displayName
+
+                                            const res = await fetch(`${API_URL}/auth/update-profile`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                body: JSON.stringify(body)
+                                            });
+                                            const data = await res.json();
+
+                                            if (res.ok) {
+                                                // Update local user state
+                                                setLocalUser(prev => ({ ...prev, ...data.user }));
+                                                setAccountModal(null);
+                                            } else {
+                                                alert(data.error || 'Update failed');
                                             }
-                                        }}>Save</button>
-                                        <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Change Password Modal */}
-                            {accountModal === 'password' && (
-                                <>
-                                    <h3>Change Password</h3>
-                                    <input type="password" placeholder="Current password" className="modal-input" id="modal-current-pw" />
-                                    <input type="password" placeholder="New password" className="modal-input" id="modal-new-pw" />
-                                    <input type="password" placeholder="Confirm password" className="modal-input" id="modal-confirm-pw" />
-                                    <p id="pw-error" style={{ color: '#FF4444', fontSize: '12px', margin: '5px 0', display: 'none' }}></p>
-                                    <div className="modal-btns">
-                                        <button className="modal-btn-primary" onClick={async () => {
-                                            const currentPw = document.getElementById('modal-current-pw').value;
-                                            const newPw = document.getElementById('modal-new-pw').value;
-                                            const confirmPw = document.getElementById('modal-confirm-pw').value;
-                                            const errorEl = document.getElementById('pw-error');
-
-                                            const showError = (msg) => {
-                                                errorEl.textContent = msg;
-                                                errorEl.style.display = 'block';
-                                            };
-
-                                            if (!currentPw || !newPw || !confirmPw) {
-                                                showError('Please fill all fields');
-                                                return;
-                                            }
-                                            if (newPw !== confirmPw) {
-                                                showError('Passwords do not match');
-                                                return;
-                                            }
-                                            if (newPw.length < 6) {
-                                                showError('Password must be at least 6 characters');
-                                                return;
-                                            }
-
-                                            try {
-                                                const token = localStorage.getItem('game_token');
-                                                const res = await fetch(`${API_URL}/auth/change-password`, {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type': 'application/json',
-                                                        'Authorization': `Bearer ${token}`
-                                                    },
-                                                    body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw })
-                                                });
-                                                const data = await res.json();
-                                                if (res.ok) {
-                                                    setAccountModal(null);
-                                                } else {
-                                                    showError(data.error || 'Failed to change password');
-                                                }
-                                            } catch (err) {
-                                                showError('Failed to change password');
-                                            }
-                                        }}>Change Password</button>
-                                        <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Delete Account Modal */}
-                            {accountModal === 'delete' && (
-                                <>
-                                    <h3 style={{ color: '#FF4444' }}>Delete Account</h3>
-                                    <p style={{ color: '#888', marginBottom: '20px' }}>
-                                        This will permanently delete your account and all data. This cannot be undone.
-                                    </p>
-                                    <div className="modal-btns">
-                                        <button className="modal-btn-danger" onClick={async () => {
-                                            if (!confirm('Are you ABSOLUTELY sure? ALL data will be lost!')) return;
-
-                                            try {
-                                                const token = localStorage.getItem('game_token');
-                                                const res = await fetch(`${API_URL}/auth/delete-account`, {
-                                                    method: 'DELETE',
-                                                    headers: { 'Authorization': `Bearer ${token}` }
-                                                });
-                                                if (res.ok) {
-                                                    onLogout();
-                                                }
-                                            } catch (err) {
-                                                console.error('Failed to delete account');
-                                            }
-                                        }}>Delete My Account</button>
-                                        <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </>
-                )
-            }
+                                        } catch (e) { alert('Network error'); }
+                                    }}>Save</button>
+                                    <button className="modal-btn-cancel" onClick={() => setAccountModal(null)}>Cancel</button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </>
+            )}
 
             {/* Invite Modal */}
             {inviteModal && (
@@ -1131,7 +1168,7 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                             type="text"
                             value={searchName}
                             onChange={(e) => setSearchName(e.target.value)}
-                            placeholder="Enter username"
+                            placeholder="Enter Name#Tag"
                             className="modal-input"
                         />
                         <div className="modal-btns">

@@ -1,4 +1,4 @@
-import { User } from '../db/models/User.js';
+import { User } from '../db/models/User.model.js';
 
 export const FriendsController = {
     // Send a friend request
@@ -8,11 +8,31 @@ export const FriendsController = {
             const requesterId = req.user.userId;
 
             if (!targetUsername) {
-                return res.status(400).json({ error: 'Username is required' });
+                return res.status(400).json({ error: 'Username/Tag is required' });
             }
 
             const requester = await User.findById(requesterId);
-            const target = await User.findOne({ username: targetUsername });
+
+            // Parse Name#Tag
+            let target;
+            if (targetUsername.includes('#')) {
+                const parts = targetUsername.split('#');
+                const searchTag = parts.pop(); // Last part is tag
+                const searchName = parts.join('#'); // Join rest in case name has # (though unlikely)
+
+                // Search by Display Name + Tag
+                target = await User.findOne({
+                    displayName: searchName,
+                    tag: searchTag
+                });
+            } else {
+                // Fallback: Search by username (legacy) or exact display name if unique?
+                // For now, let's keep username search as fallback OR strict Name#Tag enforcement.
+                // User said "kết bạn sẽ dựa vào display_name#id".
+                // So if no tag provided, maybe fail? Or assume username?
+                // Let's allow username search for legacy/admin purposes if needed, but prioritize display name.
+                target = await User.findOne({ username: targetUsername });
+            }
 
             if (!target) {
                 return res.status(404).json({ error: 'User not found' });

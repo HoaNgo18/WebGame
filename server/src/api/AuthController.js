@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { User } from '../db/models/User.js';
+import { User } from '../db/models/User.model.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES = '7d';

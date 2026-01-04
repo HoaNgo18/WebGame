@@ -1,4 +1,4 @@
-import { User } from '../db/models/User.js';
+import { User } from '../db/models/User.model.js';
 
 export class UserService {
     static async findById(id) {

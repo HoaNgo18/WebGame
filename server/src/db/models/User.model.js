@@ -21,6 +21,11 @@ const userSchema = new mongoose.Schema({
         trim: true,
         maxlength: 20
     },
+    tag: {
+        type: String,
+        required: true,
+        default: () => Math.floor(1000 + Math.random() * 9000).toString() // Generate 4-digit tag
+    },
     password: {
         type: String,
         required: true,
@@ -65,7 +70,12 @@ const userSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    friends: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        status: { type: String, enum: ['pending', 'sent', 'accepted', 'blocked'], default: 'pending' },
+        createdAt: { type: Date, default: Date.now }
+    }]
 });
 
 // Hash password before saving

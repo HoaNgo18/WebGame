@@ -442,7 +442,7 @@
 }
 
 .stats-row span:first-child {
-    color: #888;
+    color: #fff;
 }
 
 .stats-value {
@@ -463,12 +463,12 @@
 }
 
 .rank-gold {
-    color: #FFD700;
+    color: #aaa !important;
     font-weight: 600;
 }
 
 .rank-normal {
-    color: #666;
+    color: #fff;
 }
 
 /* Nav spacer and divider for Settings */
@@ -979,4 +979,116 @@
 .credits-row span:last-child {
     color: #FFD700;
     font-weight: 600;
+}
+
+/* Account Form Styles */
+.account-form-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.account-form-field {
+    margin-bottom: 20px;
+}
+
+.account-form-label {
+    display: block;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.account-form-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    box-sizing: border-box;
+}
+
+.account-form-input:focus:not(:disabled) {
+    border-color: #FFD700;
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.account-form-input::placeholder {
+    color: #666;
+}
+
+.account-form-hint {
+    margin: 5px 0 0 0;
+    font-size: 12px;
+    color: #888;
+    transition: color 0.2s;
+}
+
+.account-form-hint:hover {
+    color: #FFA500;
+    text-decoration: underline;
+}
+
+.account-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+    justify-content: center;
+}
+
+.account-form-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    width: auto;
+    min-width: 80px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #aaa;
+}
+
+.account-form-btn.save-btn:hover {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: #FFD700;
+    color: #FFD700;
+}
+
+.account-form-btn.delete-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
+    border-color: #FF4444;
+    color: #FF4444;
+}
+
+/* Password Change Button Tooltip */
+.password-change-btn {
+    position: relative;
+}
+
+.password-change-btn::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    margin-bottom: 5px;
+}
+
+.password-change-btn:hover::after {
+    opacity: 1;
 }

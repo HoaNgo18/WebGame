@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { connectDB } from './db/mongo.js';
 import authRouter from './api/auth.js';
+import friendRouter from './api/friendRoutes.js';
 import config from './config.js';
 import { User } from './db/models/User.model.js';
 
@@ -14,6 +15,7 @@ app.use(express.json());
 
 // REST API routes
 app.use('/api/auth', authRouter);
+app.use('/api/friends', friendRouter);
 
 // Leaderboard route
 app.get('/api/leaderboard', async (req, res) => {

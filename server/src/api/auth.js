@@ -3,8 +3,25 @@ import jwt from 'jsonwebtoken';
 // Lưu ý: Đường dẫn này đã được sửa để đúng với cấu trúc models
 import { User } from '../db/models/User.model.js';
 import config from '../config.js';
+import { FriendsController } from './friends.js';
 
 const router = express.Router();
+
+// Middleware to verify token and populate req.user for FriendsController
+const requireAuth = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    try {
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        // FriendsController expects req.user.userId
+        req.user = { userId: decoded.id };
+        req.userId = decoded.id; // For other controllers if needed
+        next();
+    } catch (error) {
+        return res.status(401).json({ error: 'Invalid token' });
+    }
+};
 
 // Register
 router.post('/register', async (req, res) => {
@@ -46,6 +63,7 @@ router.post('/register', async (req, res) => {
                 id: user._id,
                 username: user.username,
                 displayName: user.displayName, // Return displayName
+                tag: user.tag, // Return tag
                 email: user.email,
                 highScore: user.highScore,
                 // --- Cập nhật thêm ---
@@ -101,6 +119,7 @@ router.post('/login', async (req, res) => {
                 id: user._id,
                 username: user.username,
                 displayName: effectiveDisplayName, // Can be null if not set
+                tag: user.tag, // Return tag
                 email: user.email,
                 highScore: user.highScore || 0,
                 coins: user.coins || 0,
@@ -157,17 +176,47 @@ router.post('/update-profile', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const { displayName } = req.body;
+        const { displayName, username, email, tag } = req.body;
 
-        if (displayName !== undefined) {
+        // Display Name Update
+        if (displayName !== undefined && displayName !== user.displayName) {
             user.displayName = displayName.trim();
-            await user.save();
         }
+
+        // Tag Update
+        if (tag !== undefined && tag !== user.tag) {
+            // Validate Tag (4 digits)
+            if (!/^\d{4}$/.test(tag)) {
+                return res.status(400).json({ error: 'Tag must be 4 digits' });
+            }
+
+            // Check Uniqueness (Display Name + Tag)
+            // Note: Since displayName might have changed above, we use user.displayName (which is updated)
+            const existing = await User.findOne({ displayName: user.displayName, tag: tag });
+            if (existing) {
+                return res.status(400).json({ error: 'This Name#Tag combination is taken' });
+            }
+            user.tag = tag;
+        }
+
+        // Handle Email Change
+        if (email && email !== user.email) {
+            const existing = await User.findOne({ email });
+            if (existing) return res.status(400).json({ error: 'Email already used' });
+            user.email = email.trim();
+        }
+
+        // Username is IMMUTABLE - Ignore/Remove logic
+
+        await user.save();
 
         res.json({
             success: true,
             user: {
-                displayName: user.displayName
+                username: user.username,
+                displayName: user.displayName,
+                email: user.email,
+                tag: user.tag
             }
         });
     } catch (error) {
@@ -276,5 +325,12 @@ router.post('/sound-settings', async (req, res) => {
         res.status(500).json({ error: 'Failed to update sound settings' });
     }
 });
+
+// Friend routes
+router.post('/friends/request', requireAuth, FriendsController.sendRequest);
+router.post('/friends/accept', requireAuth, FriendsController.acceptRequest);
+router.post('/friends/reject', requireAuth, FriendsController.rejectRequest);
+router.post('/friends/remove', requireAuth, FriendsController.removeFriend);
+router.get('/friends', requireAuth, FriendsController.getFriends);
 
 export default router;
