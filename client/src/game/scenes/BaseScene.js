@@ -4,7 +4,6 @@ import { socket } from '../../network/socket';
 import { PacketType } from 'shared/packetTypes';
 import { ClientPlayer } from '../entities/ClientPlayer';
 import { WEAPON_STATS, MAP_SIZE } from 'shared/constants';
-import { AssetLoader } from '../AssetLoader';
 import { InputManager } from '../InputManager';
 import { EntityManager } from '../EntityManager';
 import { SoundManager } from '../SoundManager';
@@ -24,7 +23,7 @@ export class BaseScene extends Phaser.Scene {
     }
 
     preload() {
-        AssetLoader.preload(this);
+        // Assets are now loaded in BootScene
     }
 
     create() {
@@ -46,7 +45,18 @@ export class BaseScene extends Phaser.Scene {
         this.createVisualAsteroidBelt();
 
         // 4. Hook socket
+        // 4. Hook socket
         socket.setGameScene(this);
+
+        // Notify App.jsx that game is ready
+        this.registry.get('notifyReady')?.();
+
+        // 5. Cleanup on shutdown
+        this.events.on('shutdown', () => {
+            if (this.soundManager) {
+                this.soundManager.destroy();
+            }
+        });
     }
 
     update(time, delta) {

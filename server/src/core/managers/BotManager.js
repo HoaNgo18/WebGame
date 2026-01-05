@@ -28,8 +28,8 @@ export class BotManager {
         let botCount = 0;
 
         this.game.players.forEach(p => {
-            if (p.isBot) botCount++;
-            else realPlayerCount++;
+            if (p.isBot && !p.dead) botCount++;
+            else if (!p.isBot && !p.dead) realPlayerCount++;
         });
 
         const targetBotCount = realPlayerCount < 3 ? 5 : 2;

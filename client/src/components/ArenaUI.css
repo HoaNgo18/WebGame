@@ -114,3 +114,14 @@
 
 /* Victory / End Screen handled by DeathScreen component now, 
    but specific styles for Arena overlays if any can go here */
+
+/* Spin animation for loading spinner */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}

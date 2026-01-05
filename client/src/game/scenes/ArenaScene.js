@@ -7,12 +7,15 @@ import { AssetLoader } from '../AssetLoader';
 import { InputManager } from '../InputManager';
 import { EntityManager } from '../EntityManager';
 
+import { SoundManager } from '../SoundManager';
+
 export class ArenaScene extends Phaser.Scene {
     constructor() {
         super('ArenaScene');
         this.players = {};
         this.entityManager = null;
         this.inputManager = null;
+        this.soundManager = null; // Add SoundManager
         this.rangeCircle = null;
         this.isArena = true;
 
@@ -37,6 +40,10 @@ export class ArenaScene extends Phaser.Scene {
         // 2. Initialize Managers
         this.entityManager = new EntityManager(this);
         this.inputManager = new InputManager(this);
+        this.soundManager = new SoundManager(this); // Init SoundManager
+
+        // Start Engine Sound (muted initially)
+        this.soundManager.startEngine();
 
         // 3. Setup UI/Helpers
         this.createRangeCircle();
@@ -65,7 +72,19 @@ export class ArenaScene extends Phaser.Scene {
         this.aliveCount = 10;
 
         // 6. Connect Socket Logic
+        // 6. Connect Socket Logic
+        // 6. Connect Socket Logic
         socket.setGameScene(this);
+
+        // Notify App.jsx that game is ready
+        this.registry.get('notifyReady')?.();
+
+        // 7. Cleanup on shutdown
+        this.events.on('shutdown', () => {
+            if (this.soundManager) {
+                this.soundManager.destroy();
+            }
+        });
     }
 
     createRangeCircle() {
@@ -94,6 +113,12 @@ export class ArenaScene extends Phaser.Scene {
         // 4. UPDATE WARNING TEXT ANIMATION
         if (this.zoneWarningText.visible) {
             this.zoneWarningText.setAlpha(0.5 + Math.sin(time / 150) * 0.5);
+        }
+
+        // Update Engine Sound
+        if (this.soundManager && socket.myId && this.players[socket.myId]) {
+            const isThrusting = this.inputManager.keys.W.isDown || this.inputManager.keys.UP.isDown;
+            this.soundManager.updateEngine(isThrusting);
         }
 
         // 5. Update Visual Asteroids
@@ -161,6 +186,7 @@ export class ArenaScene extends Phaser.Scene {
         this.entityManager.updateExplosions(packet.explosions);
         this.entityManager.updateChests(packet);
         this.entityManager.updateItems(packet);
+        this.entityManager.updateHitEffects(packet.hitEffects);
 
         // 3. Update alive count
         if (packet.aliveCount !== undefined) {

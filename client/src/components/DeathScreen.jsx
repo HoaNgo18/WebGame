@@ -18,7 +18,7 @@ const DEATH_QUOTES = [
     "Save coins to unlock new ship skins in the shop."
 ];
 
-const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, rank = null, isVictory = false }) => {
+const DeathScreen = ({ killerName, score, onQuit, onRespawn, arenaMode = 'endless', rank = null, isVictory = false }) => {
 
     const isSuicide = !killerName || killerName === 'Yourself';
 
@@ -27,6 +27,87 @@ const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, ra
         return DEATH_QUOTES[Math.floor(Math.random() * DEATH_QUOTES.length)];
     }, []);
 
+    // ============ ARENA MODE (Legacy Code) ============
+    if (arenaMode === 'arena') {
+        return (
+            <div className={`death-screen-container ${isVictory ? 'victory-mode' : ''}`}>
+
+                {/* Tiêu đề */}
+                <h1 className={`death-title ${isVictory ? 'victory-text' : ''}`}>
+                    {isVictory ? 'VICTORY' : 'YOU DIED'}
+                </h1>
+
+                {/* Combined info box - quote inside */}
+                <div className="death-content-box">
+                    {/* Thông tin kẻ giết hoặc Victory message */}
+                    {isVictory ? (
+                        <div className="death-info-row victory-info">
+                            YOU ARE THE CHAMPION!
+                        </div>
+                    ) : (
+                        <div className="death-info-row">
+                            {isSuicide && !true ? (
+                                <span>💔 You eliminated yourself!</span>
+                            ) : (
+                                <span>
+                                    Eliminated by <strong className="killer-name">{killerName || 'Unknown'}</strong>
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Divider */}
+                    <div className="death-divider"></div>
+
+                    {/* Điểm số / Rank */}
+                    <div className="death-score-row">
+                        {rank !== null && rank !== undefined ? (
+                            <>
+                                <span className="stat-label">RANK</span>
+                                <span className="stat-value" style={{ color: isVictory || rank === 1 ? '#FFD700' : '#FFF' }}>
+                                    #{rank}
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="stat-label">SCORE</span>
+                                <span className="stat-value">{score}</span>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Divider */}
+                    <div className="death-divider"></div>
+
+                    {/* Random Quote - inside box */}
+                    <div className="death-quote">
+                        {randomQuote}
+                    </div>
+                </div>
+
+                {/* Nút bấm */}
+                <div className="death-btn-group">
+                    {onRespawn && (
+                        <button
+                            onClick={onRespawn}
+                            className="death-btn respawn-btn"
+                        >
+                            PLAY AGAIN
+                        </button>
+                    )}
+
+                    <button
+                        onClick={onQuit}
+                        className="death-btn quit-btn"
+                    >
+                        MENU
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ============ 1V1 MODE & ENDLESS MODE (Current Code) ============
     return (
         <div className={`death-screen-container ${isVictory ? 'victory-mode' : ''}`}>
 
@@ -42,7 +123,7 @@ const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, ra
                     </div>
                 ) : (
                     <div className="death-info-row">
-                        {isArena ? (
+                        {arenaMode === '1v1' ? (
                             <div className="death-info-row defeated-info">BETTER LUCK NEXT TIME!</div>
                         ) : isSuicide ? (
                             <span>💔 You eliminated yourself!</span>
@@ -57,9 +138,9 @@ const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, ra
                 {/* Divider */}
                 <div className="death-divider"></div>
 
-                {/* Result: Victory/Defeated for Arena, Score for Endless */}
+                {/* Result: Victory/Defeated for 1v1, Score for Endless */}
                 <div className="death-score-row">
-                    {isArena ? (
+                    {arenaMode === '1v1' ? (
                         <span className={`result-text ${isVictory ? 'victory-text' : 'defeated-text'}`}>
                             {isVictory ? 'VICTORY' : 'DEFEATED'}
                         </span>

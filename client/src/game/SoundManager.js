@@ -200,4 +200,18 @@ export class SoundManager {
             this.engineSound.setVolume(targetVolume);
         }
     }
+
+    destroy() {
+        if (this.bgm) {
+            this.bgm.stop();
+            this.bgm.destroy();
+            this.bgm = null;
+        }
+        if (this.engineSound) {
+            this.engineSound.stop();
+            this.engineSound.destroy();
+            this.engineSound = null;
+        }
+        this.scene = null;
+    }
 }

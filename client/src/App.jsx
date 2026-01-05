@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Phaser from 'phaser';
+import { BootScene } from './game/scenes/BootScene';
 import { GameScene } from './game/scenes/GameScene';
 import { ArenaScene } from './game/scenes/ArenaScene';
 import HUD from './components/HUD';
@@ -25,6 +26,11 @@ function App() {
     const [arenaWaitTime, setArenaWaitTime] = useState(60);
     const [arenaMode, setArenaMode] = useState('arena'); // 'arena' or '1v1'
     const arenaTimeoutRef = useRef(null);
+    const [isGameReady, setIsGameReady] = useState(false);
+    const [arenaGameStarted, setArenaGameStarted] = useState(false); // Track if arena match has started
+
+    // Endless Loading State
+    const [endlessLoading, setEndlessLoading] = useState(null); // Number (5,4,3...) or null
 
     // Safe timeout cleanup
     const clearArenaTimeout = () => {
@@ -70,11 +76,11 @@ function App() {
 
         // Small delay to ensure connection
         await new Promise(resolve => setTimeout(resolve, 100));
-        socket.send({
-            type: PacketType.RESPAWN,
-            skinId: skinToUse
-        });
+
+        // Start Phaser immediately, but wait for visual countdown to respawn
+        setIsGameReady(false);
         setGameState('playing');
+        setEndlessLoading(5); // Start 5s countdown
     };
 
     const handleStartArena = async (selectedSkinId, mode = 'arena', roomId = null) => {
@@ -88,6 +94,8 @@ function App() {
         setArenaWaitTime(60);
         setArenaPlayerCount(0);
         setArenaMode(mode);
+        setIsGameReady(false);
+        setArenaGameStarted(false);
 
         const skinToUse = selectedSkinId || user.equippedSkin || 'default';
 
@@ -147,6 +155,10 @@ function App() {
             // DO NOT close socket here - we need it for HomeScreen to work
             // socket.ws.close() was causing skin equip to fail after Arena
         }
+
+        // Clear Endless loading if quitting mid-load
+        setEndlessLoading(null);
+        setArenaGameStarted(false);
     };
 
     const handleRespawn = () => {
@@ -192,6 +204,7 @@ function App() {
             if (packet.type === PacketType.ARENA_START) {
                 setGameState('arena_playing');
                 setArenaCountdown(null);
+                setArenaGameStarted(true); // Mark arena as started, but keep overlay until ready
             }
 
             // PLAYER DIED EVENT
@@ -246,6 +259,31 @@ function App() {
         };
     }, []);
 
+    // ENDLESS LOADING COUNTDOWN
+    useEffect(() => {
+        if (endlessLoading === null) return;
+
+        if (endlessLoading > 0) {
+            const timer = setTimeout(() => {
+                setEndlessLoading(prev => prev - 1);
+            }, 1000);
+            return () => clearTimeout(timer);
+        } else {
+            // Countdown finished (0). Wait for Game Ready?
+            // Actually, we should WAIT for gameReady before removing overlay.
+            if (isGameReady) {
+                // Countdown finished AND Game is Ready -> Respawn
+                const skinToUse = user?.equippedSkin || 'default';
+                socket.send({
+                    type: PacketType.RESPAWN,
+                    skinId: skinToUse
+                });
+                setEndlessLoading(null);
+            }
+            // If !isGameReady, we stay at 0 (showing "CONNECTING..." in UI)
+        }
+    }, [endlessLoading, user, isGameReady]);
+
     // GAME INITIALIZATION
     useEffect(() => {
         let game = null;
@@ -257,7 +295,13 @@ function App() {
                 height: window.innerHeight,
                 parent: 'phaser-container',
                 physics: { default: 'arcade', arcade: { debug: false } },
-                scene: [GameScene],
+                scene: [BootScene, GameScene], // BootScene first to load assets
+                callbacks: {
+                    preBoot: (game) => {
+                        game.registry.set('targetScene', 'GameScene');
+                        game.registry.set('notifyReady', () => setIsGameReady(true));
+                    }
+                },
                 scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }
             };
             game = new Phaser.Game(config);
@@ -277,7 +321,14 @@ function App() {
                 height: window.innerHeight,
                 parent: 'phaser-container',
                 physics: { default: 'arcade', arcade: { debug: false } },
-                scene: [ArenaScene],
+                scene: [BootScene, ArenaScene], // BootScene first to load assets
+                callbacks: {
+                    preBoot: (game) => {
+                        game.registry.set('targetScene', 'ArenaScene');
+                        // Arena doesn't use endlessLoading, but good to have
+                        game.registry.set('notifyReady', () => setIsGameReady(true));
+                    }
+                },
                 scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }
             };
             game = new Phaser.Game(config);
@@ -307,7 +358,7 @@ function App() {
                 <div className="arena-waiting-container">
 
 
-                    <h1 className="arena-title">{arenaMode === '1v1' ? '1v1 DUEL' : 'ARENA'}</h1>
+                    <h1 className="arena-title">{arenaMode === '1v1' ? '1 VS 1' : 'ARENA'}</h1>
 
                     {arenaCountdown !== null ? (
                         <div className="arena-countdown-container">
@@ -346,14 +397,33 @@ function App() {
             {gameState === 'arena_playing' && (
                 <>
                     <div id="phaser-container" className="phaser-container" />
-                    {!isDead && !arenaWinner && <HUD isArena={true} arenaMode={arenaMode} />}
+
+                    {/* Arena Loading Overlay - show until game is ready */}
+                    {arenaGameStarted && !isGameReady && (
+                        <div className="arena-waiting-container" style={{ position: 'absolute', top: 0, left: 0, zIndex: 1000 }}>
+                            <h1 className="arena-title">{arenaMode === '1v1' ? '1 VS 1' : 'ARENA'}</h1>
+                            <div className="arena-countdown-container">
+                                <p className="arena-countdown-text">LOADING MATCH...</p>
+                                <div className="arena-countdown-spinner" style={{
+                                    width: 60, height: 60,
+                                    border: '4px solid rgba(255,255,255,0.1)',
+                                    borderTop: '4px solid #FFD700',
+                                    borderRadius: '50%',
+                                    margin: '20px auto',
+                                    animation: 'spin 1s linear infinite'
+                                }} />
+                            </div>
+                        </div>
+                    )}
+
+                    {!isDead && !arenaWinner && isGameReady && <HUD isArena={true} arenaMode={arenaMode} />}
 
 
                     {/* Victory/Defeat Screen for Arena */}
                     {arenaWinner && (
                         <DeathScreen
                             isVictory={arenaWinner.isMe}
-                            isArena={true}
+                            arenaMode={arenaMode}
                             killerName={arenaWinner.isMe ? null : arenaWinner.name}
                             score={arenaWinner.score}
                             rank={arenaWinner.isMe ? 1 : 2}
@@ -374,7 +444,7 @@ function App() {
                     {isDead && !arenaWinner && (
                         <DeathScreen
                             isVictory={false}
-                            isArena={true}
+                            arenaMode={arenaMode}
                             killerName={killerName}
                             score={finalScore}
                             rank={arenaRank}
@@ -393,9 +463,38 @@ function App() {
             {gameState === 'playing' && (
                 <>
                     <div id="phaser-container" className="phaser-container" />
-                    {!isDead && <HUD />}
-                    {isDead && (
+
+                    {/* Endless Loading Overlay */}
+                    {endlessLoading !== null && (
+                        <div className="arena-waiting-container" style={{ position: 'absolute', top: 0, left: 0, zIndex: 1000 }}>
+                            <h1 className="arena-title">ENDLESS</h1>
+                            <div className="arena-countdown-container">
+                                {endlessLoading > 0 ? (
+                                    <>
+                                        <p className="arena-countdown-text">MATCH STARTING IN...</p>
+                                        <div className="arena-countdown-number">
+                                            {endlessLoading}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="arena-countdown-text" style={{ fontSize: '32px' }}>
+                                        CONNECTING...
+                                    </p>
+                                )}
+                            </div>
+                            <button
+                                onClick={handleQuitToMenu}
+                                className="arena-cancel-btn"
+                            >
+                                CANCEL
+                            </button>
+                        </div>
+                    )}
+
+                    {!isDead && endlessLoading === null && <HUD />}
+                    {isDead && endlessLoading === null && (
                         <DeathScreen
+                            arenaMode="endless"
                             killerName={killerName}
                             score={finalScore}
                             onQuit={handleQuitToMenu}

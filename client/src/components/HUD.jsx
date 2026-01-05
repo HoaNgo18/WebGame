@@ -83,8 +83,7 @@ const HUD = ({ isArena = false, arenaMode = 'arena' }) => {
             if (scene.players) {
                 const sorted = Object.values(scene.players)
                     .filter(p => !p.dead && p.name)
-                    // Filter out bots (id starts with 'arena_bot_' or skinId starts with 'bot_')
-                    .filter(p => !p.id?.startsWith('arena_bot_') && !p.skinId?.startsWith('bot_'))
+                    // Arena bots are now allowed in leaderboard
                     .sort((a, b) => (b.score || 0) - (a.score || 0))
                     .slice(0, 10);
 

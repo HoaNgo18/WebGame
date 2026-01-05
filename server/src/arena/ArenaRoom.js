@@ -108,6 +108,7 @@ export class ArenaRoom {
             foods: this.world.foods,
             obstacles: this.world.obstacles,
             nebulas: this.world.nebulas,
+            wormholes: this.world.wormholes,
             chests: this.world.chests,
             items: this.world.items,
             isArena: true,
@@ -466,6 +467,10 @@ export class ArenaRoom {
 
     async saveKillerStats(player) {
         await ArenaStatsHandler.saveKillerStats(player, this.server);
+    }
+
+    async savePlayerRanking(player, rank) {
+        await ArenaStatsHandler.savePlayerRanking(player, rank, this);
     }
 
     // ========================================
