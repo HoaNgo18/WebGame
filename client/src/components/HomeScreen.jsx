@@ -40,15 +40,90 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     const [inviteModal, setInviteModal] = useState(null); // { inviterName, mode, roomId }
     const [showAddFriend, setShowAddFriend] = useState(false);
     const [showRequests, setShowRequests] = useState(false);
+    const [selectedFriends, setSelectedFriends] = useState(new Set()); // Set of friend IDs
+    const [friendFilter, setFriendFilter] = useState(''); // Search filter for friends
+
+    const handleToggleFriend = (friendId) => {
+        const newSelected = new Set(selectedFriends);
+        if (newSelected.has(friendId)) {
+            newSelected.delete(friendId);
+        } else {
+            newSelected.add(friendId);
+        }
+        setSelectedFriends(newSelected);
+    };
+
+    const handleBulkInvite = () => {
+        if (selectedFriends.size === 0) return;
+        const mode = prompt('Enter mode to invite (1v1 or arena):', '1v1');
+        if (mode === '1v1' || mode === 'arena') {
+            selectedFriends.forEach(id => {
+                const friend = friends.find(f => f.id === id);
+                if (friend && friend.user) { // friend.user is the ID needed for socket? No, wait. 
+                    // In handleInviteFriend: `socket.send({ friendId: friendId ... })`
+                    // In loadFriends: `friend.user` (object) -> `f.user._id` (string) mapped to `f.id`
+                    // Wait, getFriends keeps `id` as `f.user._id`.
+                    // The socket invites needs the UserID.
+                    // Let's check handleInviteFriend.
+                    // It takes (friendId, mode).
+                    // In previous code `handleInviteFriend(friend.user, mode)`. 
+                    // Wait, `getFriends` returns `id: f.user._id`.
+                    // Is `friend.user` available in the mapped object? 
+                    // No, mapped object is { id, username, displayName, tag, avatar, status, isOnline }.
+                    // The old code passed `friend.user` but I suspect `friend.user` was undefined in the mapped object if I didn't verify carefully.
+                    // Let's check getFriends in `friends.js`:
+                    // `id: f.user._id`. 
+                    // So `friend.id` IS the UserID.
+                    // The previous code `handleInviteFriend(friend.user, mode)` might have been WRONG if `friend` is the mapped object.
+                    // In `getFriends`, `friend` object does NOT have `user` property. It has `id`.
+                    // So `handleInviteFriend(friend.id, mode)` is likely correct.
+                    // Let's use `friend.id`.
+                    handleInviteFriend(friend.id, mode);
+                }
+            });
+            alert(`Invites sent to ${selectedFriends.size} friends!`);
+            setSelectedFriends(new Set());
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedFriends.size === 0) return;
+        if (!confirm(`Are you sure you want to remove ${selectedFriends.size} friends?`)) return;
+
+        // We can't use handleRemoveFriend directly because it has confirm() call.
+        // Let's call API directly or refactor handleRemoveFriend.
+        // For simplicity, let's iterate and call API.
+        try {
+            const token = localStorage.getItem('game_token');
+            const promises = Array.from(selectedFriends).map(friendId =>
+                fetch(`${API_URL}/friends/remove`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ friendId })
+                })
+            );
+            await Promise.all(promises);
+            loadFriends();
+            setSelectedFriends(new Set());
+        } catch (err) {
+            console.error(err);
+        }
+    };
     const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
     const API_URL = `${BASE_URL}/api`;
 
     // Track if we've already requested fresh data to prevent infinite loop
     const hasRequestedData = React.useRef(false);
 
-    // Sync local user state with prop (only on user change)
+    // Sync local user state with prop (only on user change and not when editing in account tab)
     useEffect(() => {
-        setLocalUser(user);
+        // Only sync if not actively editing in account tab
+        if (activeTab !== 'account') {
+            setLocalUser(user);
+        }
         setShowLogin(!user);
         setConnecting(false); // Reset connecting state when user changes (logout)
         setError(''); // Clear any previous errors
@@ -61,7 +136,7 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
         }
         if (user) {
             loadSkins();
-            loadLeaderboard();
+            // Note: loadLeaderboard is called when user switches to leaderboard tab
         }
         // Reset the request flag when user changes (e.g., login/logout)
         hasRequestedData.current = false;
@@ -70,7 +145,6 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     // Request fresh data ONCE after mount when user exists
     useEffect(() => {
         if (user && socket.isConnected && !hasRequestedData.current) {
-            console.log('[HomeScreen] Requesting fresh user data from server (once)');
             socket.send({ type: PacketType.REQUEST_USER_DATA });
             hasRequestedData.current = true;
         }
@@ -225,14 +299,11 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     };
 
     const loadLeaderboard = async () => {
-        console.log('[HomeScreen] Loading leaderboard from:', API_URL);
         try {
             // Fetch Endless leaderboard (top 3 by highScore)
             const endlessRes = await fetch(`${API_URL}/leaderboard?type=endless&limit=3`);
-            console.log('[HomeScreen] Endless response status:', endlessRes.status);
             if (endlessRes.ok) {
                 const data = await endlessRes.json();
-                console.log('[HomeScreen] Endless data:', data);
                 // Handle both {players: [...]} and direct array format
                 const players = data.players || data || [];
                 setEndlessLeaderboard(players);
@@ -240,10 +311,8 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
             // Fetch Arena leaderboard (top 3 by arenaWins)
             const arenaRes = await fetch(`${API_URL}/leaderboard?type=arena&limit=3`);
-            console.log('[HomeScreen] Arena response status:', arenaRes.status);
             if (arenaRes.ok) {
                 const data = await arenaRes.json();
-                console.log('[HomeScreen] Arena data:', data);
                 // Handle both {players: [...]} and direct array format
                 const players = data.players || data || [];
                 setArenaLeaderboard(players);
@@ -365,11 +434,9 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
     const handleEquipSkin = (skinId) => {
         if (!socket.isConnected) {
-            console.error('[HomeScreen] Cannot equip skin - socket not connected');
             setError('Connection lost. Please refresh the page.');
             return;
         }
-        console.log('[HomeScreen] Equipping skin:', skinId);
         socket.send({
             type: PacketType.EQUIP_SKIN,
             skinId: skinId
@@ -598,9 +665,32 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                             <div className="account-form-actions">
                                                 <button
                                                     className="account-form-btn save-btn"
-                                                    onClick={() => {
-                                                        // TODO: Save account changes
-                                                        console.log('Saving account changes:', localUser);
+                                                    onClick={async () => {
+                                                        try {
+                                                            const token = localStorage.getItem('game_token');
+                                                            const res = await fetch(`${API_URL}/auth/update-profile`, {
+                                                                method: 'POST',
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                    'Authorization': `Bearer ${token}`
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    email: localUser.email,
+                                                                    displayName: localUser.displayName
+                                                                })
+                                                            });
+                                                            const data = await res.json();
+                                                            if (res.ok) {
+                                                                alert('Profile updated successfully!');
+                                                                // Request fresh data from server
+                                                                socket.send({ type: PacketType.REQUEST_USER_DATA });
+                                                            } else {
+                                                                alert(data.error || 'Failed to update profile');
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('Save error:', err);
+                                                            alert('Network error');
+                                                        }
                                                     }}
                                                 >
                                                     Save Changes
@@ -671,7 +761,26 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                 <div className="friends-page">
                                     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '15px' }}>
                                         <h2 className="section-title" style={{ marginBottom: 0 }}>FRIENDS</h2>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            {/* Search Bar */}
+                                            <input
+                                                type="text"
+                                                placeholder="Search friends..."
+                                                value={friendFilter}
+                                                onChange={(e) => setFriendFilter(e.target.value)}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    background: 'rgba(255, 255, 255, 0.1)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                    borderRadius: '4px',
+                                                    color: '#fff',
+                                                    fontSize: '14px',
+                                                    width: '150px',
+                                                    outline: 'none'
+                                                }}
+                                            />
+                                            <div style={{ width: '1px', height: '20px', background: 'rgba(255, 255, 255, 0.2)', margin: '0 5px' }}></div>
+
                                             <button
                                                 className="account-action-btn"
                                                 title="Add new friend"
@@ -717,29 +826,91 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                             {friends.filter(f => f.status === 'accepted').length === 0 ? (
                                                 <div className="no-data" style={{ padding: '20px', textAlign: 'center', color: '#666' }}>No friends yet. Add some!</div>
                                             ) : (
-                                                friends.filter(f => f.status === 'accepted').map((friend, idx) => (
-                                                    <div key={friend.id} className="stats-row" style={{ justifyContent: 'space-between' }}>
-                                                        <span style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                                            <span style={{ color: '#666', width: '25px', fontWeight: 'bold' }}>#{idx + 1}</span>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <span className={`status-indicator ${friend.isOnline ? 'online' : 'offline'}`} style={{ width: '8px', height: '8px', borderRadius: '50%', background: friend.isOnline ? '#4CAF50' : '#666' }}></span>
-                                                                <span style={{ color: friend.isOnline ? '#fff' : '#aaa', fontWeight: friend.isOnline ? 'bold' : 'normal' }}>{friend.displayName || friend.username}</span>
+                                                friends
+                                                    .filter(f => f.status === 'accepted')
+                                                    .filter(f => (f.displayName || f.username || '').toLowerCase().includes(friendFilter.toLowerCase()) || (f.tag || '').includes(friendFilter))
+                                                    .map((friend, idx) => (
+                                                        <div key={friend.id} className="stats-row" style={{ justifyContent: 'space-between', alignItems: 'center', padding: '12px 15px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                                {/* Custom Checkbox */}
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="friend-checkbox"
+                                                                    checked={selectedFriends.has(friend.id)}
+                                                                    onChange={() => handleToggleFriend(friend.id)}
+                                                                />
+
+                                                                {/* Avatar & Status */}
+                                                                <div className="friend-avatar-container">
+                                                                    <div className="friend-avatar">
+                                                                        {friend.avatar ? (
+                                                                            <img src={friend.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                                        ) : (
+                                                                            (friend.displayName || friend.username || '?')[0]
+                                                                        )}
+                                                                    </div>
+                                                                    <div className={`friend-status-dot ${friend.isOnline ? 'status-online' : 'status-offline'}`}
+                                                                        title={friend.isOnline ? 'Online' : 'Offline'}
+                                                                    />
+                                                                </div>
+
+                                                                {/* Info: Name & Tag */}
+                                                                <div className="friend-info">
+                                                                    <span className="friend-name">
+                                                                        {friend.displayName || friend.username}
+                                                                    </span>
+                                                                    <span className="friend-tag">
+                                                                        #{friend.tag || '0000'}
+                                                                    </span>
+                                                                </div>
                                                             </div>
-                                                        </span>
-                                                        <div className="friend-actions" style={{ display: 'flex', gap: '10px' }}>
-                                                            <button className="action-btn-sm" style={{ padding: '6px 12px', background: 'rgba(255, 215, 0, 0.1)', border: '1px solid rgba(255, 215, 0, 0.3)', color: '#FFD700', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }} onClick={() => {
-                                                                const mode = prompt('Enter mode to invite (1v1 or arena):', '1v1');
-                                                                if (mode === '1v1' || mode === 'arena') {
-                                                                    handleInviteFriend(friend.user, mode);
-                                                                }
-                                                            }}>INVITE</button>
-                                                            <button className="action-btn-sm danger" style={{ padding: '6px 12px', background: 'rgba(255, 68, 68, 0.1)', border: '1px solid rgba(255, 68, 68, 0.3)', color: '#FF4444', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }} onClick={() => handleRemoveFriend(friend.id)}>DELETE</button>
+
+                                                            {/* Individual Invite Button (Only if Online) */}
+                                                            {friend.isOnline && (
+                                                                <button
+                                                                    className="action-btn-sm"
+                                                                    title="Invite to Game"
+                                                                    style={{
+                                                                        width: '32px',
+                                                                        height: '32px',
+                                                                        background: 'rgba(255, 215, 0, 0.1)',
+                                                                        border: '1px solid rgba(255, 215, 0, 0.3)',
+                                                                        color: '#FFD700',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '18px',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        padding: 0
+                                                                    }}
+                                                                    onClick={() => {
+                                                                        const mode = prompt('Enter mode to invite (1v1 or arena):', '1v1');
+                                                                        if (mode === '1v1' || mode === 'arena') {
+                                                                            handleInviteFriend(friend.id, mode);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    ⚔
+                                                                </button>
+                                                            )}
                                                         </div>
-                                                    </div>
-                                                ))
+                                                    ))
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Bottom Delete Action */}
+                                    {selectedFriends.size > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '15px' }}>
+                                            <button
+                                                className="delete-friends-btn"
+                                                onClick={handleBulkDelete}
+                                            >
+                                                Delete Friends ({selectedFriends.size})
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -758,7 +929,7 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                                 <div key={idx} className="stats-row">
                                                     <span>
                                                         <span className="rank-gold">#{idx + 1}</span>
-                                                        {' '}{p.displayName || p.username || 'Unknown'}
+                                                        {' '}{(p.displayName || p.username || 'Unknown')}#{(p.tag || '0000')}
                                                     </span>
                                                     <span className="stats-value gold">{p.score ?? p.highScore ?? 0}</span>
                                                 </div>
@@ -778,7 +949,7 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                                                 <div key={idx} className="stats-row">
                                                     <span>
                                                         <span className="rank-gold">#{idx + 1}</span>
-                                                        {' '}{p.displayName || p.username || 'Unknown'}
+                                                        {' '}{(p.displayName || p.username || 'Unknown')}#{(p.tag || '0000')}
                                                     </span>
                                                     <span className="stats-value gold">{p.score ?? p.arenaWins ?? 0}</span>
                                                 </div>

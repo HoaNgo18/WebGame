@@ -5,7 +5,7 @@ import './HUD.css';
 
 const MINIMAP_SIZE = 150;
 
-const HUD = ({ isArena = false }) => {
+const HUD = ({ isArena = false, arenaMode = 'arena' }) => {
     const [stats, setStats] = useState({
         lives: 3,
         maxLives: 3,
@@ -83,6 +83,8 @@ const HUD = ({ isArena = false }) => {
             if (scene.players) {
                 const sorted = Object.values(scene.players)
                     .filter(p => !p.dead && p.name)
+                    // Filter out bots (id starts with 'arena_bot_' or skinId starts with 'bot_')
+                    .filter(p => !p.id?.startsWith('arena_bot_') && !p.skinId?.startsWith('bot_'))
                     .sort((a, b) => (b.score || 0) - (a.score || 0))
                     .slice(0, 10);
 
@@ -253,8 +255,8 @@ const HUD = ({ isArena = false }) => {
                     </div>
                 </div>
 
-                {/* Alive Row */}
-                {isArena && (
+                {/* Alive Row - Hidden in 1v1 mode */}
+                {isArena && arenaMode !== '1v1' && (
                     <div className="hud-row" style={{ alignItems: 'baseline' }}>
                         <span className="hud-label">ALIVE</span>
                         <span className="alive-val">

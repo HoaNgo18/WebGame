@@ -30,10 +30,8 @@ const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, ra
     return (
         <div className={`death-screen-container ${isVictory ? 'victory-mode' : ''}`}>
 
-            {/* Tiêu đề */}
-            <h1 className={`death-title ${isVictory ? 'victory-text' : ''}`}>
-                {isVictory ? 'VICTORY' : 'YOU DIED'}
-            </h1>
+            {/* Tiêu đề chính */}
+            <h1 className="death-title">GAME OVER</h1>
 
             {/* Combined info box - quote inside */}
             <div className="death-content-box">
@@ -44,7 +42,9 @@ const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, ra
                     </div>
                 ) : (
                     <div className="death-info-row">
-                        {isSuicide && !isArena ? (
+                        {isArena ? (
+                            <div className="death-info-row defeated-info">BETTER LUCK NEXT TIME!</div>
+                        ) : isSuicide ? (
                             <span>💔 You eliminated yourself!</span>
                         ) : (
                             <span>
@@ -57,15 +57,12 @@ const DeathScreen = ({ killerName, score, onQuit, onRespawn, isArena = false, ra
                 {/* Divider */}
                 <div className="death-divider"></div>
 
-                {/* Điểm số / Rank */}
+                {/* Result: Victory/Defeated for Arena, Score for Endless */}
                 <div className="death-score-row">
-                    {rank !== null && rank !== undefined ? (
-                        <>
-                            <span className="stat-label">RANK</span>
-                            <span className="stat-value" style={{ color: isVictory || rank === 1 ? '#FFD700' : '#FFF' }}>
-                                #{rank}
-                            </span>
-                        </>
+                    {isArena ? (
+                        <span className={`result-text ${isVictory ? 'victory-text' : 'defeated-text'}`}>
+                            {isVictory ? 'VICTORY' : 'DEFEATED'}
+                        </span>
                     ) : (
                         <>
                             <span className="stat-label">SCORE</span>

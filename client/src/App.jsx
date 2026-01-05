@@ -346,17 +346,17 @@ function App() {
             {gameState === 'arena_playing' && (
                 <>
                     <div id="phaser-container" className="phaser-container" />
-                    {!isDead && !arenaWinner && <HUD isArena={true} />}
+                    {!isDead && !arenaWinner && <HUD isArena={true} arenaMode={arenaMode} />}
 
 
-                    {/* Victory Screen */}
+                    {/* Victory/Defeat Screen for Arena */}
                     {arenaWinner && (
                         <DeathScreen
-                            isVictory={true}
+                            isVictory={arenaWinner.isMe}
                             isArena={true}
-                            killerName={null}
+                            killerName={arenaWinner.isMe ? null : arenaWinner.name}
                             score={arenaWinner.score}
-                            rank={1}
+                            rank={arenaWinner.isMe ? 1 : 2}
                             onQuit={() => {
                                 handleQuitToMenu();
                                 socket.fullReset();
@@ -365,7 +365,7 @@ function App() {
                                 setArenaWinner(null);
                                 setIsDead(false);
                                 socket.fullReset();
-                                handleStartArena(user?.equippedSkin);
+                                handleStartArena(user?.equippedSkin, arenaMode);
                             }}
                         />
                     )}

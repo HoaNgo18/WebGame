@@ -20,10 +20,24 @@ app.use('/api/friends', friendRouter);
 // Leaderboard route
 app.get('/api/leaderboard', async (req, res) => {
     try {
+        const { type = 'endless', limit = 10 } = req.query;
+        const limitNum = parseInt(limit) || 10;
+
+        let sortField, selectFields;
+
+        if (type === 'arena') {
+            sortField = { arenaWins: -1 };
+            selectFields = 'username displayName tag arenaWins arenaTop2 arenaTop3';
+        } else {
+            // Default to endless mode
+            sortField = { highScore: -1 };
+            selectFields = 'username displayName tag highScore totalKills totalDeaths';
+        }
+
         const topPlayers = await User.find()
-            .sort({ highScore: -1 })
-            .limit(10)
-            .select('username highScore totalKills totalDeaths arenaWins arenaTop2 arenaTop3');
+            .sort(sortField)
+            .limit(limitNum)
+            .select(selectFields);
 
         res.json(topPlayers);
     } catch (err) {

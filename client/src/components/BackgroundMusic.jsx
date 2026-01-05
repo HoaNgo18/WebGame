@@ -36,7 +36,7 @@ const BackgroundMusic = () => {
                 await audio.play();
                 setIsPlaying(true);
             } catch (err) {
-                console.log("Autoplay blocked, waiting for interaction");
+                // Autoplay blocked, waiting for user interaction
                 setIsPlaying(false);
             }
         };

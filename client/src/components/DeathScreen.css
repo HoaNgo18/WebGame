@@ -24,11 +24,30 @@
 .death-title {
     font-size: 64px;
     font-weight: 900;
-    color: #FF4444;
-    margin-bottom: 40px;
+    color: #FFF;
+    margin-bottom: 10px;
     letter-spacing: -2px;
-    text-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
     text-transform: uppercase;
+}
+
+/* Subtitle - Victory/Defeated */
+.death-subtitle {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.death-subtitle.victory-text {
+    color: #FFD700;
+    text-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+}
+
+.death-subtitle.defeated-text {
+    color: #FF4444;
+    text-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
 }
 
 /* Combined content box - EXACT match to arena-status-container */
@@ -56,6 +75,12 @@
 
 .death-info-row.victory-info {
     color: #FFD700;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.death-info-row.defeated-info {
+    color: #FF6B6B;
     font-size: 24px;
     font-weight: bold;
 }
@@ -96,6 +121,24 @@
     color: #fff !important;
     line-height: 1;
     text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+}
+
+/* Result text - Victory/Defeated */
+.result-text {
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+}
+
+.result-text.victory-text {
+    color: #FFD700;
+    text-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+}
+
+.result-text.defeated-text {
+    color: #FF4444;
+    text-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
 }
 
 /* Random Quote - inside box, centered */

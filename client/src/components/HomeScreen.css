@@ -799,6 +799,107 @@
     color: #FF6666 !important;
 }
 
+/* === Friends Tab Refinements === */
+
+/* Custom Checkbox */
+.friend-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background-color: transparent;
+    border: 2px solid #666;
+    /* Light gray border */
+    border-radius: 6px;
+    /* Rounded corners */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.friend-checkbox:checked {
+    background-color: #FFD700;
+    border-color: #FFD700;
+}
+
+.friend-checkbox:checked::after {
+    content: '✔';
+    color: #000;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.friend-checkbox:hover {
+    border-color: #aaa;
+}
+
+/* Avatar & Status */
+.friend-avatar-container {
+    position: relative;
+    width: 40px;
+    height: 40px;
+}
+
+.friend-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: #333;
+    /* Dark gray placeholder */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-weight: bold;
+    font-size: 18px;
+    text-transform: uppercase;
+    overflow: hidden;
+}
+
+.friend-status-dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #0f0f23;
+    /* Same as background to create 'cutout' effect */
+}
+
+.status-online {
+    background-color: #4CAF50;
+}
+
+.status-offline {
+    background-color: #666;
+}
+
+/* Typography */
+.friend-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.2;
+}
+
+.friend-name {
+    color: #fff;
+    font-weight: 600;
+    /* Medium/Bold */
+    font-size: 16px;
+}
+
+.friend-tag {
+    color: #888;
+    /* Darker gray */
+    font-size: 12px;
+}
+
 .danger-btn-sm:hover {
     background: rgba(255, 68, 68, 0.1) !important;
     border-color: #FF4444 !important;
@@ -926,6 +1027,32 @@
 .modal-btn-danger:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+}
+
+.delete-friends-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    width: auto;
+
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #aaa;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+.delete-friends-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
+    border-color: #FF4444;
+    color: #FF4444;
 }
 
 /* Version Text */

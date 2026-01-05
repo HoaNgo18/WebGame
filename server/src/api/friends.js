@@ -64,9 +64,14 @@ export const FriendsController = {
             }
 
             // If target already sent a request, accept it automatically
-            if (targetFriendship && targetFriendship.status === 'pending') {
-                // Update both to accepted
-                existingFriendship.status = 'accepted';
+            if (targetFriendship && targetFriendship.status === 'sent') {
+                // Target sent request to Requester, so in Requester's list it should be 'pending'
+                if (!existingFriendship) {
+                    // Create the friendship entry if it doesn't exist
+                    requester.friends.push({ user: target._id, status: 'accepted' });
+                } else {
+                    existingFriendship.status = 'accepted';
+                }
                 targetFriendship.status = 'accepted';
                 await requester.save();
                 await target.save();
@@ -226,7 +231,7 @@ export const FriendsController = {
     getFriends: async (req, res) => {
         try {
             const userId = req.user.userId;
-            const user = await User.findById(userId).populate('friends.user', 'username displayName avatar stats status');
+            const user = await User.findById(userId).populate('friends.user', 'username displayName tag avatar stats status');
 
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
@@ -241,6 +246,7 @@ export const FriendsController = {
                     id: f.user._id,
                     username: f.user.username,
                     displayName: f.user.displayName,
+                    tag: f.user.tag,
                     avatar: f.user.avatar,
                     status: f.status, // 'accepted', 'pending', 'sent'
                     isOnline: false // Offline by default, will be enriched by Socket/WorldManager if needed, or client checks presence
