@@ -2,9 +2,11 @@
 import { PacketType } from 'shared/packetTypes';
 import { AuthService } from '../../services/AuthService.js';
 import { SkinService } from '../../services/SkinService.js';
+import { setUserOnline } from '../Server.js';
+import { notifyFriendStatus } from '../../api/friends.js';
 
 /**
- * Handler xử lý tất cả message types từ WebSocket
+ * Handler for all WebSocket message types
  */
 export class MessageHandler {
     constructor(server) {
@@ -12,7 +14,7 @@ export class MessageHandler {
     }
 
     /**
-     * Xử lý message chính - dispatch đến handler tương ứng
+     * Main message handler - dispatch to appropriate handler
      */
     async handle(clientId, packet) {
         const client = this.server.clients.get(clientId);
@@ -43,6 +45,10 @@ export class MessageHandler {
 
             case PacketType.FRIEND_INVITE:
                 await this.handleFriendInvite(clientId, packet);
+                break;
+
+            case PacketType.INVITE_RESPONSE:
+                await this.handleInviteResponse(clientId, packet);
                 break;
 
             case PacketType.INPUT:
@@ -104,6 +110,9 @@ export class MessageHandler {
 
         if (playerInfo.userId) {
             client.userId = playerInfo.userId;
+            // Track user as online for friends list
+            setUserOnline(playerInfo.userId, clientId);
+            notifyFriendStatus(this.server, playerInfo.userId, true);
         }
 
         // Send user data if authenticated
@@ -132,6 +141,9 @@ export class MessageHandler {
 
         if (playerInfo.userId) {
             client.userId = playerInfo.userId;
+            // Track user as online for friends list
+            setUserOnline(playerInfo.userId, clientId);
+            notifyFriendStatus(this.server, playerInfo.userId, true);
         }
 
         // Send user data if authenticated
@@ -289,13 +301,16 @@ export class MessageHandler {
         const client = this.server.clients.get(clientId);
         const { friendId, mode } = packet;
 
-        // Check if inviter is in a room
-        if (!client.arenaRoomId) {
-            return;
+        // Get inviter's name for the notification
+        let inviterName = 'Friend';
+        if (client.player && client.player.name) {
+            inviterName = client.player.name;
+        } else if (client.userId) {
+            const profile = await SkinService.getUserProfile(client.userId);
+            if (profile) {
+                inviterName = profile.displayName || profile.username || 'Friend';
+            }
         }
-
-        const room = this.server.arena.getRoom(client.arenaRoomId);
-        if (!room) return;
 
         // Find friend's client
         let friendClient = null;
@@ -307,12 +322,69 @@ export class MessageHandler {
         }
 
         if (friendClient) {
+            // Send invite notification to friend
+            // Include inviterId so friend can join with them
             this.server.sendToClient(friendClient.id, {
                 type: PacketType.GAME_INVITE,
-                inviterName: client.player ? client.player.name : 'A friend',
+                inviterName: inviterName,
+                inviterId: client.userId?.toString(),
                 mode: mode || '1v1',
-                roomId: room.id
+                roomId: null // No room yet - will be created when friend accepts
             });
+        }
+    }
+
+    /**
+     * Handle INVITE_RESPONSE - invitee accepts/declines invite
+     */
+    async handleInviteResponse(clientId, packet) {
+        const { accepted, inviterId, mode } = packet;
+
+        // Find inviter's client
+        let inviterClient = null;
+        for (const [cid, c] of this.server.clients) {
+            if (c.userId && c.userId.toString() === inviterId) {
+                inviterClient = c;
+                break;
+            }
+        }
+
+        if (!inviterClient) {
+            console.log('[handleInviteResponse] Inviter not found or offline');
+            // Notify invitee that inviter is offline
+            this.server.sendToClient(clientId, {
+                type: PacketType.INVITE_FAILED,
+                reason: 'Inviter is offline'
+            });
+            return;
+        }
+
+        if (accepted) {
+            // Create the 1v1 room immediately on server
+            const room = this.server.arena.create1v1Room();
+            const roomId = room.id;
+
+            // Send roomId to BOTH players so they join the SAME room
+            this.server.sendToClient(inviterClient.id, {
+                type: PacketType.INVITE_ACCEPTED,
+                mode: mode,
+                roomId: roomId
+            });
+
+            this.server.sendToClient(clientId, {
+                type: PacketType.INVITE_ACCEPTED,
+                mode: mode,
+                roomId: roomId
+            });
+
+            console.log(`[handleInviteResponse] Invite accepted. Room: ${roomId}`);
+        } else {
+            // Send decline notification to inviter
+            this.server.sendToClient(inviterClient.id, {
+                type: PacketType.INVITE_DECLINED
+            });
+
+            console.log('[handleInviteResponse] Invite declined');
         }
     }
 }

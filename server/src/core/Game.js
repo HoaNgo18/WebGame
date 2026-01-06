@@ -68,9 +68,7 @@ export class Game {
         this.world.spawnFood();
         this.world.spawnNormalChestIfNeeded();
         this.world.spawnStationIfNeeded();
-
-        // 6. Broadcast State
-        this.sendStateUpdate();
+        // Note: sendStateUpdate is called by separate setInterval at BROADCAST_RATE (20fps)
     }
 
     // --- PLAYER MANAGEMENT ---

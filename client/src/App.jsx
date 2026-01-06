@@ -70,7 +70,7 @@ function App() {
                 : (user.username || user.name || 'Player');
 
             await socket.connect({
-                token: localStorage.getItem('game_token'),
+                token: sessionStorage.getItem('game_token') || localStorage.getItem('game_token'),
                 name: ingameName
             });
         } catch (err) {
@@ -116,7 +116,7 @@ function App() {
                 : (user.username || user.name || 'Player');
 
             await socket.connectArena({
-                token: localStorage.getItem('game_token'),
+                token: sessionStorage.getItem('game_token') || localStorage.getItem('game_token'),
                 name: ingameName,
                 skinId: skinToUse,
                 mode: mode,
@@ -417,7 +417,8 @@ function App() {
                             rank={arenaWinner.isMe ? 1 : 2}
                             onQuit={() => {
                                 handleQuitToMenu();
-                                socket.fullReset();
+                                // DO NOT call socket.fullReset() here - we need the socket 
+                                // connected for HomeScreen to work (friend status, equip skin)
                             }}
                             onRespawn={() => {
                                 setArenaWinner(null);

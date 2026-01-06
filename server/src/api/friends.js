@@ -1,4 +1,5 @@
 import { User } from '../db/models/User.model.js';
+import { isUserOnline, sendToUserById } from '../core/Server.js';
 
 export const FriendsController = {
     // Send a friend request
@@ -7,11 +8,15 @@ export const FriendsController = {
             const { targetUsername } = req.body;
             const requesterId = req.user.userId;
 
+            console.log('[DEBUG sendRequest] requesterId:', requesterId);
+            console.log('[DEBUG sendRequest] targetUsername:', targetUsername);
+
             if (!targetUsername) {
                 return res.status(400).json({ error: 'Username/Tag is required' });
             }
 
             const requester = await User.findById(requesterId);
+            console.log('[DEBUG sendRequest] requester found:', requester ? requester.username : 'NULL');
 
             // Parse Name#Tag
             let target;
@@ -20,25 +25,30 @@ export const FriendsController = {
                 const searchTag = parts.pop(); // Last part is tag
                 const searchName = parts.join('#'); // Join rest in case name has # (though unlikely)
 
+                console.log('[DEBUG sendRequest] Searching for displayName:', searchName, 'tag:', searchTag);
+
                 // Search by Display Name + Tag
                 target = await User.findOne({
                     displayName: searchName,
                     tag: searchTag
                 });
             } else {
-                // Fallback: Search by username (legacy) or exact display name if unique?
-                // For now, let's keep username search as fallback OR strict Name#Tag enforcement.
-                // User said "kết bạn sẽ dựa vào display_name#id".
-                // So if no tag provided, maybe fail? Or assume username?
-                // Let's allow username search for legacy/admin purposes if needed, but prioritize display name.
+                // Fallback: Search by username (legacy)
                 target = await User.findOne({ username: targetUsername });
             }
+
+            console.log('[DEBUG sendRequest] target found:', target ? target.username : 'NULL');
 
             if (!target) {
                 return res.status(404).json({ error: 'User not found' });
             }
 
-            if (requester.username === target.username) {
+            console.log('[DEBUG sendRequest] requester._id:', requester._id.toString());
+            console.log('[DEBUG sendRequest] target._id:', target._id.toString());
+            console.log('[DEBUG sendRequest] Are they equal?', requester._id.toString() === target._id.toString());
+
+            // Self-check using _id (more reliable than username)
+            if (requester._id.toString() === target._id.toString()) {
                 return res.status(400).json({ error: 'Cannot add yourself' });
             }
 
@@ -122,6 +132,16 @@ export const FriendsController = {
             // Update Target
             target.friends.push({ user: requester._id, status: 'pending' });
             await target.save();
+
+            // Send real-time notification to target if online
+            sendToUserById(target._id.toString(), {
+                type: 'FRIEND_REQUEST',
+                from: {
+                    id: requester._id.toString(),
+                    displayName: requester.displayName || requester.username,
+                    tag: requester.tag || '0000'
+                }
+            });
 
             res.json({ message: 'Friend request sent' });
 
@@ -242,6 +262,9 @@ export const FriendsController = {
                 // Handle case where user might be deleted
                 if (!f.user) return null;
 
+                // Filter out self-friendships (legacy bug fix)
+                if (f.user._id.toString() === userId.toString()) return null;
+
                 return {
                     id: f.user._id,
                     username: f.user.username,
@@ -249,9 +272,11 @@ export const FriendsController = {
                     tag: f.user.tag,
                     avatar: f.user.avatar,
                     status: f.status, // 'accepted', 'pending', 'sent'
-                    isOnline: false // Offline by default, will be enriched by Socket/WorldManager if needed, or client checks presence
+                    isOnline: isUserOnline(f.user._id) // Real online status from WebSocket tracking
                 };
             }).filter(f => f !== null);
+
+            console.log(`[DEBUG getFriends] User ${user.username} has ${friends.length} friends`);
 
             res.json({ friends });
 
@@ -259,5 +284,46 @@ export const FriendsController = {
             console.error('Get Friends Error:', err);
             res.status(500).json({ error: 'Server error' });
         }
+    }
+};
+
+export const notifyFriendStatus = async (server, userId, isOnline) => {
+    try {
+        if (!userId) return;
+
+        // Find users who have this user as friend (and accepted)
+        const friendsOfUser = await User.find({
+            'friends.user': userId,
+            'friends.status': 'accepted'
+        }).select('friends');
+        // Note: We need the friend's ID (the user doc ID). 
+        // User.find returns docs. Each doc is a friend of 'userId'.
+        // The doc._id is the friend's ID.
+
+        for (const friendUser of friendsOfUser) {
+            const friendId = friendUser._id;
+
+            // Check if this friend is online
+            if (isUserOnline(friendId)) {
+                // Find their client ID
+                let friendClientId = null;
+                for (const [cid, client] of server.clients) {
+                    if (client.userId && client.userId.toString() === friendId.toString()) {
+                        friendClientId = cid;
+                        break;
+                    }
+                }
+
+                if (friendClientId) {
+                    server.sendToClient(friendClientId, {
+                        type: 'FRIEND_UPDATE',
+                        friendId: userId,
+                        isOnline: isOnline
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Notify Friend Status Error:', err);
     }
 };

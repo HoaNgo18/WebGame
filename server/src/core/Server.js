@@ -4,10 +4,48 @@ import { Game } from './Game.js';
 import { rateLimit } from '../utils/rateLimit.js';
 import { ArenaManager } from '../arena/ArenaManager.js';
 import { MessageHandler } from './handlers/MessageHandler.js';
+import { notifyFriendStatus } from '../api/friends.js';
+
+// Track online users by userId for friends online status
+const onlineUsers = new Map(); // userId -> clientId
+
+// Global server instance for API access
+let serverInstance = null;
+
+export const setServerInstance = (server) => {
+    serverInstance = server;
+};
+
+// Export function to check if a user is online
+export const isUserOnline = (userId) => {
+    if (!userId) return false;
+    return onlineUsers.has(userId.toString());
+};
+
+// Export function to add/remove users (called from MessageHandler)
+export const setUserOnline = (userId, clientId) => {
+    if (userId) onlineUsers.set(userId.toString(), clientId);
+};
+
+export const setUserOffline = (userId) => {
+    if (userId) onlineUsers.delete(userId.toString());
+};
+
+// Export function to send message to user by userId (for API controllers)
+export const sendToUserById = (userId, packet) => {
+    if (!serverInstance || !userId) return false;
+
+    const clientId = onlineUsers.get(userId.toString());
+    if (clientId) {
+        serverInstance.sendToClient(clientId, packet);
+        return true;
+    }
+    return false;
+};
 
 /**
- * WebSocket Server - Quản lý connections và lifecycle
- * Message handling được delegate cho MessageHandler
+ * WebSocket Server - Manages connections and lifecycle
+ * Message handling is delegated to MessageHandler
  */
 export class Server {
     constructor(port = 3000) {
@@ -16,6 +54,9 @@ export class Server {
         this.clients = new Map();
         this.arena = new ArenaManager(this);
         this.messageHandler = new MessageHandler(this);
+
+        // Set global instance for API access
+        setServerInstance(this);
 
         console.log(`WebSocket server running on port ${port}`);
         this.setupWSS();
@@ -58,6 +99,12 @@ export class Server {
     handleDisconnect(clientId) {
         const client = this.clients.get(clientId);
         if (!client) return;
+
+        // Remove user from online tracking
+        if (client.userId) {
+            setUserOffline(client.userId);
+            notifyFriendStatus(this, client.userId, false);
+        }
 
         // Remove from arena if in arena
         if (client.arenaRoomId) {
