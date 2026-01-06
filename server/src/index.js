@@ -9,9 +9,48 @@ import { User } from './db/models/User.model.js';
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Middleware - CORS with proper configuration for production
+const corsOptions = {
+    origin: config.NODE_ENV === 'production'
+        ? config.CLIENT_URL
+        : true, // Allow all in development
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Simple rate limiting middleware (no external dependency)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 100; // 100 requests per minute
+
+const rateLimiter = (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+
+    if (!rateLimitMap.has(ip)) {
+        rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+        return next();
+    }
+
+    const record = rateLimitMap.get(ip);
+    if (now > record.resetTime) {
+        record.count = 1;
+        record.resetTime = now + RATE_LIMIT_WINDOW;
+        return next();
+    }
+
+    record.count++;
+    if (record.count > RATE_LIMIT_MAX) {
+        return res.status(429).json({ error: 'Too many requests, please try again later' });
+    }
+
+    next();
+};
+
+// Apply rate limiting to API routes
+app.use('/api/', rateLimiter);
 
 // REST API routes
 app.use('/api/auth', authRouter);

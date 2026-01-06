@@ -37,28 +37,17 @@ const LoginScreen = ({ onLoginSuccess }) => {
         setConnecting(true);
         try {
             await socket.connect({ name: username });
-            const savedGuest = localStorage.getItem('guest_data');
-            let guestData;
-            if (savedGuest) {
-                const parsed = JSON.parse(savedGuest);
-                guestData = {
-                    ...parsed,
-                    username: username,
-                    isGuest: true,
-                    totalKills: parsed.totalKills || 0,
-                    totalDeaths: parsed.totalDeaths || 0,
-                    coins: parsed.coins || 0,
-                    highScore: parsed.highScore || 0
-                };
-            } else {
-                guestData = {
-                    username: username,
-                    coins: 0,
-                    highScore: 0,
-                    isGuest: true
-                };
-            }
-            onLoginSuccess({ username: username, coins: 0, highScore: 0, isGuest: true });
+            // Guest data is session-only - always start fresh
+            onLoginSuccess({
+                username: username,
+                coins: 0,
+                highScore: 0,
+                totalKills: 0,
+                totalDeaths: 0,
+                isGuest: true,
+                equippedSkin: 'default',
+                skins: ['default']
+            });
         } catch (err) {
             setError('Cannot connect to Game Server!');
             setConnecting(false);

@@ -14,13 +14,18 @@ export class SoundManager {
     }
 
     loadSettings() {
-        const settings = localStorage.getItem('soundSettings');
-        if (settings) {
-            const parsed = JSON.parse(settings);
-            this.masterVolume = parsed.masterVolume ?? 0.5;
-            this.musicVolume = parsed.musicVolume ?? 0.5;
-            this.sfxVolume = parsed.sfxVolume ?? 0.7;
-            this.enabled = parsed.enabled ?? true;
+        try {
+            const settings = localStorage.getItem('soundSettings');
+            if (settings) {
+                const parsed = JSON.parse(settings);
+                this.masterVolume = parsed.masterVolume ?? 0.5;
+                this.musicVolume = parsed.musicVolume ?? 0.5;
+                this.sfxVolume = parsed.sfxVolume ?? 0.7;
+                this.enabled = parsed.enabled ?? true;
+            }
+        } catch (e) {
+            // Invalid JSON in localStorage, use defaults
+            console.warn('Invalid sound settings, using defaults');
         }
         this.updateVolumes();
     }
@@ -106,7 +111,6 @@ export class SoundManager {
     // --- Specific Sound Methods ---
 
     playShoot(weaponType = 'BLUE') {
-        console.log('[SoundManager] playShoot called, volume:', this.getSFXVolume());
         const pitch = 0.9 + Math.random() * 0.2; // Random pitch 0.9-1.1
         this.playSound('laser', { detune: (pitch - 1) * 1000, volume: 0.6 });
     }
@@ -173,7 +177,6 @@ export class SoundManager {
     startEngine() {
         if (this.engineSound) return;
 
-        console.log('[SoundManager] startEngine called');
         this.engineSound = this.scene.sound.add('engine', {
             loop: true,
             volume: 0 // Start silent, will be updated by updateEngine

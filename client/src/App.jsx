@@ -41,12 +41,16 @@ function App() {
     };
 
     const handleStartGame = async (selectedSkinId) => {
+        // Guard: ensure user is logged in
+        if (!user) {
+            alert('Please login first!');
+            return;
+        }
+
         clearArenaTimeout();
         setIsDead(false);
         setKillerName('');
         setFinalScore(0);
-
-        const skinToUse = selectedSkinId || user.equippedSkin || 'default';
 
         socket.isInArena = false;
         socket.arenaRoomId = null;
@@ -84,6 +88,12 @@ function App() {
     };
 
     const handleStartArena = async (selectedSkinId, mode = 'arena', roomId = null) => {
+        // Guard: ensure user is logged in
+        if (!user) {
+            alert('Please login first!');
+            return;
+        }
+
         clearArenaTimeout();
 
         setIsDead(false);
@@ -214,24 +224,17 @@ function App() {
                 setFinalScore(packet.score);
                 setArenaRank(packet.rank || '?');
 
-                // Handle Guest Data update
+                // Handle Guest Data update - session only, no localStorage persistence
                 setUser(prevUser => {
                     if (prevUser && prevUser.isGuest) {
-                        const savedGuest = localStorage.getItem('guest_data');
-                        const oldData = savedGuest ? JSON.parse(savedGuest) : {};
-                        const updatedGuest = {
-                            ...oldData,
-                            // IMPORTANT: Use current session username, not old one!
-                            username: prevUser.username,
-                            isGuest: true,
-                            coins: (oldData.coins || 0) + (packet.coins || 0),
-                            highScore: Math.max(oldData.highScore || 0, packet.score),
-                            totalKills: (oldData.totalKills || 0) + (packet.kills || 0),
-                            totalDeaths: (oldData.totalDeaths || 0) + 1,
-                            equippedSkin: prevUser.equippedSkin || oldData.equippedSkin || 'default'
+                        // Update guest data in session state only (not persisted)
+                        return {
+                            ...prevUser,
+                            coins: (prevUser.coins || 0) + (packet.coins || 0),
+                            highScore: Math.max(prevUser.highScore || 0, packet.score),
+                            totalKills: (prevUser.totalKills || 0) + (packet.kills || 0),
+                            totalDeaths: (prevUser.totalDeaths || 0) + 1
                         };
-                        localStorage.setItem('guest_data', JSON.stringify(updatedGuest));
-                        return updatedGuest;
                     }
                     return prevUser;
                 });
@@ -288,23 +291,25 @@ function App() {
     useEffect(() => {
         let game = null;
 
+        // Factory function to create Phaser game config
+        const createGameConfig = (targetScene, scenes) => ({
+            type: Phaser.AUTO,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            parent: 'phaser-container',
+            physics: { default: 'arcade', arcade: { debug: false } },
+            scene: scenes,
+            callbacks: {
+                preBoot: (game) => {
+                    game.registry.set('targetScene', targetScene);
+                    game.registry.set('notifyReady', () => setIsGameReady(true));
+                }
+            },
+            scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }
+        });
+
         if (gameState === 'playing') {
-            const config = {
-                type: Phaser.AUTO,
-                width: window.innerWidth,
-                height: window.innerHeight,
-                parent: 'phaser-container',
-                physics: { default: 'arcade', arcade: { debug: false } },
-                scene: [BootScene, GameScene], // BootScene first to load assets
-                callbacks: {
-                    preBoot: (game) => {
-                        game.registry.set('targetScene', 'GameScene');
-                        game.registry.set('notifyReady', () => setIsGameReady(true));
-                    }
-                },
-                scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }
-            };
-            game = new Phaser.Game(config);
+            game = new Phaser.Game(createGameConfig('GameScene', [BootScene, GameScene]));
 
             return () => {
                 if (game) game.destroy(true);
@@ -314,24 +319,7 @@ function App() {
 
         if (gameState === 'arena_playing') {
             socket.resetGameScene();
-
-            const config = {
-                type: Phaser.AUTO,
-                width: window.innerWidth,
-                height: window.innerHeight,
-                parent: 'phaser-container',
-                physics: { default: 'arcade', arcade: { debug: false } },
-                scene: [BootScene, ArenaScene], // BootScene first to load assets
-                callbacks: {
-                    preBoot: (game) => {
-                        game.registry.set('targetScene', 'ArenaScene');
-                        // Arena doesn't use endlessLoading, but good to have
-                        game.registry.set('notifyReady', () => setIsGameReady(true));
-                    }
-                },
-                scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }
-            };
-            game = new Phaser.Game(config);
+            game = new Phaser.Game(createGameConfig('ArenaScene', [BootScene, ArenaScene]));
 
             return () => {
                 if (game) game.destroy(true);

@@ -64,7 +64,8 @@ class NetworkManager {
     connectArena(authOptions) {
         return new Promise((resolve, reject) => {
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-                this.ws = new WebSocket('ws://localhost:3000');
+                const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+                this.ws = new WebSocket(wsUrl);
 
                 this.ws.onopen = () => {
                     this.isConnected = true;

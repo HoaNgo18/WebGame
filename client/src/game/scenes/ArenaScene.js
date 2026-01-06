@@ -72,8 +72,6 @@ export class ArenaScene extends Phaser.Scene {
         this.aliveCount = 10;
 
         // 6. Connect Socket Logic
-        // 6. Connect Socket Logic
-        // 6. Connect Socket Logic
         socket.setGameScene(this);
 
         // Notify App.jsx that game is ready

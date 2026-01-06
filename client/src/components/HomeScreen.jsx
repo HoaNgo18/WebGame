@@ -117,9 +117,18 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
     // Track if we've already requested fresh data to prevent infinite loop
     const hasRequestedData = React.useRef(false);
+    // Track previous user ID to detect actual user change (not just property updates)
+    const prevUserIdRef = React.useRef(null);
 
     // Sync local user state with prop (only on user change and not when editing in account tab)
     useEffect(() => {
+        const currentUserId = user?.id || user?.username || null;
+        const prevUserId = prevUserIdRef.current;
+        const isActualUserChange = currentUserId !== prevUserId;
+
+        // Update the ref for next comparison
+        prevUserIdRef.current = currentUserId;
+
         // Only sync if not actively editing in account tab
         if (activeTab !== 'account') {
             setLocalUser(user);
@@ -127,19 +136,27 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
         setShowLogin(!user);
         setConnecting(false); // Reset connecting state when user changes (logout)
         setError(''); // Clear any previous errors
-        // Reset input fields on logout
-        if (!user) {
-            setUsername('');
-            setPassword('');
-            setEmail('');
-            setDisplayName('');
+
+        // Only reset these on ACTUAL user change (login/logout/switch account)
+        if (isActualUserChange) {
+            // Reset input fields on logout
+            if (!user) {
+                setUsername('');
+                setPassword('');
+                setEmail('');
+                setDisplayName('');
+            }
+            // Clear friends when switching users (prevents guest seeing logged-in user's friends)
+            setFriends([]);
+            setSelectedFriends(new Set());
+            // Reset the request flag when user changes
+            hasRequestedData.current = false;
         }
+
         if (user) {
             loadSkins();
             // Note: loadLeaderboard is called when user switches to leaderboard tab
         }
-        // Reset the request flag when user changes (e.g., login/logout)
-        hasRequestedData.current = false;
     }, [user]);
 
     // Request fresh data ONCE after mount when user exists
@@ -332,29 +349,17 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
         setConnecting(true);
         try {
             await socket.connect({ name: username });
-            const savedGuest = localStorage.getItem('guest_data');
-            let guestData;
-            if (savedGuest) {
-                const parsed = JSON.parse(savedGuest);
-                guestData = {
-                    ...parsed,
-                    username: username,
-                    isGuest: true,
-                    totalKills: parsed.totalKills || 0,
-                    totalDeaths: parsed.totalDeaths || 0,
-                    coins: parsed.coins || 0,
-                    highScore: parsed.highScore || 0,
-                    equippedSkin: parsed.equippedSkin || 'default'
-                };
-            } else {
-                guestData = {
-                    username: username,
-                    coins: 0,
-                    highScore: 0,
-                    isGuest: true,
-                    equippedSkin: 'default'
-                };
-            }
+            // Guest data is now session-only - always start fresh
+            const guestData = {
+                username: username,
+                coins: 0,
+                highScore: 0,
+                totalKills: 0,
+                totalDeaths: 0,
+                isGuest: true,
+                equippedSkin: 'default',
+                skins: ['default']
+            };
             setLocalUser(guestData);
             setShowLogin(false);
             onLoginSuccess(guestData);
