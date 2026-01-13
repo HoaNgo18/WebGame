@@ -32,12 +32,18 @@ export class InputManager {
 
             // Validate ability to shoot: must have player, not dead, and have ammo
             const hasAmmo = myPlayer?.currentAmmo === undefined || myPlayer?.currentAmmo > 0;
-            const canShoot = myPlayer && !myPlayer.dead && hasAmmo;
+            const weaponType = myPlayer?.weaponType || 'BLUE';
+
+            // RED weapon requires standing still to shoot
+            const isMoving = myPlayer?.isMoving;
+            const requireStill = weaponType === 'RED';
+            const canShootRed = !requireStill || !isMoving;
+
+            const canShoot = myPlayer && !myPlayer.dead && hasAmmo && canShootRed;
 
             if (canShoot) {
                 // Play shoot sound only when actually can shoot
                 if (this.scene.soundManager) {
-                    const weaponType = myPlayer.weaponType || 'BLUE';
                     this.scene.soundManager.playShoot(weaponType);
                 }
             }

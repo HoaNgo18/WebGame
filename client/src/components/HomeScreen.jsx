@@ -162,7 +162,8 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
         const handleFriendUpdate = (packet) => {
             if (packet.type === 'FRIEND_UPDATE') {
                 setFriends(prev => prev.map(f => {
-                    if (f.id === packet.friendId) {
+                    // Compare as strings to handle ObjectId comparison
+                    if (f.id?.toString() === packet.friendId?.toString()) {
                         return { ...f, isOnline: packet.isOnline };
                     }
                     return f;

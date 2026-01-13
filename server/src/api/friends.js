@@ -317,7 +317,7 @@ export const notifyFriendStatus = async (server, userId, isOnline) => {
                 if (friendClientId) {
                     server.sendToClient(friendClientId, {
                         type: 'FRIEND_UPDATE',
-                        friendId: userId,
+                        friendId: userId.toString(), // Ensure string
                         isOnline: isOnline
                     });
                 }
