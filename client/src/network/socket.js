@@ -28,7 +28,7 @@ class NetworkManager {
                 this.isConnected = false;
             }
 
-            const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+            const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
@@ -64,7 +64,7 @@ class NetworkManager {
     connectArena(authOptions) {
         return new Promise((resolve, reject) => {
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-                const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+                const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
                 this.ws = new WebSocket(wsUrl);
 
                 this.ws.onopen = () => {

@@ -73,15 +73,15 @@ app.get('/health', (req, res) => {
 });
 
 // Start HTTP server
-const PORT = config.HTTP_PORT || 8080;
+const PORT = process.env.PORT || config.HTTP_PORT || 8080;
 const httpServer = app.listen(PORT, () => {
-    console.log(`HTTP API server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
 
-// Start WebSocket game server immediately (don't wait for MongoDB)
-const gameServer = new Server(config.WS_PORT || 3000);
+// Start WebSocket game server attached to HTTP server
+const gameServer = new Server(httpServer);
 gameServer.start();
-console.log(`WebSocket game server started on port ${config.WS_PORT || 3000}`);
+// console.log(`WebSocket game server started on port ${config.WS_PORT || 3000}`);
 
 // Connect to MongoDB (optional for development)
 connectDB().then(() => {
