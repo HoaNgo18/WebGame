@@ -1,26 +1,21 @@
-// server/src/core/handlers/MessageHandler.js
+
 import { PacketType } from 'shared/packetTypes';
 import { AuthService } from '../../services/AuthService.js';
 import { SkinService } from '../../services/SkinService.js';
 import { setUserOnline } from '../Server.js';
 import { notifyFriendStatus } from '../../api/friends.js';
 
-/**
- * Handler for all WebSocket message types
- */
+
 export class MessageHandler {
     constructor(server) {
         this.server = server;
     }
 
-    /**
-     * Main message handler - dispatch to appropriate handler
-     */
+
     async handle(clientId, packet) {
         const client = this.server.clients.get(clientId);
         if (!client) return;
 
-        // Check if client is in arena room
         if (client.arenaRoomId) {
             const room = this.server.arena.getRoom(client.arenaRoomId);
             if (room) {
@@ -29,7 +24,6 @@ export class MessageHandler {
             }
         }
 
-        // Main game message handling
         switch (packet.type) {
             case PacketType.JOIN:
                 await this.handleJoin(clientId, packet);
@@ -101,21 +95,17 @@ export class MessageHandler {
         }
     }
 
-    /**
-     * Handle JOIN packet - authenticate and add player to game
-     */
+
     async handleJoin(clientId, packet) {
         const client = this.server.clients.get(clientId);
         const playerInfo = await AuthService.getPlayerInfo(packet.token, packet);
 
         if (playerInfo.userId) {
             client.userId = playerInfo.userId;
-            // Track user as online for friends list
             setUserOnline(playerInfo.userId, clientId);
             notifyFriendStatus(this.server, playerInfo.userId, true);
         }
 
-        // Send user data if authenticated
         if (playerInfo.user) {
             this.server.sendToClient(clientId,
                 AuthService.createUserDataPacket(playerInfo.user)
@@ -130,9 +120,7 @@ export class MessageHandler {
         );
     }
 
-    /**
-     * Handle ARENA_JOIN packet
-     */
+
     async handleArenaJoin(clientId, packet) {
         const client = this.server.clients.get(clientId);
         if (!client) return;
@@ -141,12 +129,10 @@ export class MessageHandler {
 
         if (playerInfo.userId) {
             client.userId = playerInfo.userId;
-            // Track user as online for friends list
             setUserOnline(playerInfo.userId, clientId);
             notifyFriendStatus(this.server, playerInfo.userId, true);
         }
 
-        // Send user data if authenticated
         if (playerInfo.user) {
             this.server.sendToClient(clientId,
                 AuthService.createUserDataPacket(playerInfo.user)
@@ -182,9 +168,7 @@ export class MessageHandler {
         }
     }
 
-    /**
-     * Handle arena-specific messages
-     */
+
     async handleArenaMessage(clientId, packet, room) {
         const client = this.server.clients.get(clientId);
 
@@ -223,9 +207,7 @@ export class MessageHandler {
         }
     }
 
-    /**
-     * Handle BUY_SKIN packet
-     */
+
     async handleBuySkin(clientId, skinId) {
         const client = this.server.clients.get(clientId);
         if (!client?.userId) return;
@@ -241,14 +223,11 @@ export class MessageHandler {
         }
     }
 
-    /**
-     * Handle EQUIP_SKIN packet
-     */
+
     async handleEquipSkin(clientId, skinId) {
         const client = this.server.clients.get(clientId);
         if (!client) return;
 
-        // For registered users with userId - save to database
         if (client.userId) {
             const result = await SkinService.equipSkin(client.userId, skinId);
 
@@ -258,28 +237,23 @@ export class MessageHandler {
                     equippedSkin: result.equippedSkin
                 });
 
-                // Update player skin in game
                 if (client.player) {
                     client.player.skinId = skinId;
                 }
             }
         } else {
-            // For guest users - just update locally (no database)
             this.server.sendToClient(clientId, {
                 type: 'USER_DATA_UPDATE',
                 equippedSkin: skinId
             });
 
-            // Update player skin in game  
             if (client.player) {
                 client.player.skinId = skinId;
             }
         }
     }
 
-    /**
-     * Handle REQUEST_USER_DATA packet
-     */
+
     async handleRequestUserData(clientId) {
         const client = this.server.clients.get(clientId);
         if (!client?.userId) return;
@@ -294,14 +268,11 @@ export class MessageHandler {
         }
     }
 
-    /**
-     * Handle FRIEND_INVITE
-     */
+
     async handleFriendInvite(clientId, packet) {
         const client = this.server.clients.get(clientId);
         const { friendId, mode } = packet;
 
-        // Get inviter's name for the notification
         let inviterName = 'Friend';
         if (client.player && client.player.name) {
             inviterName = client.player.name;
@@ -312,7 +283,6 @@ export class MessageHandler {
             }
         }
 
-        // Find friend's client
         let friendClient = null;
         for (const [cid, c] of this.server.clients) {
             if (c.userId && c.userId.toString() === friendId) {
@@ -320,27 +290,20 @@ export class MessageHandler {
                 break;
             }
         }
-
         if (friendClient) {
-            // Send invite notification to friend
-            // Include inviterId so friend can join with them
             this.server.sendToClient(friendClient.id, {
                 type: PacketType.GAME_INVITE,
                 inviterName: inviterName,
                 inviterId: client.userId?.toString(),
                 mode: mode || '1v1',
-                roomId: null // No room yet - will be created when friend accepts
+                roomId: null
             });
         }
     }
 
-    /**
-     * Handle INVITE_RESPONSE - invitee accepts/declines invite
-     */
     async handleInviteResponse(clientId, packet) {
         const { accepted, inviterId, mode } = packet;
 
-        // Find inviter's client
         let inviterClient = null;
         for (const [cid, c] of this.server.clients) {
             if (c.userId && c.userId.toString() === inviterId) {
@@ -350,8 +313,6 @@ export class MessageHandler {
         }
 
         if (!inviterClient) {
-            console.log('[handleInviteResponse] Inviter not found or offline');
-            // Notify invitee that inviter is offline
             this.server.sendToClient(clientId, {
                 type: PacketType.INVITE_FAILED,
                 reason: 'Inviter is offline'
@@ -360,11 +321,9 @@ export class MessageHandler {
         }
 
         if (accepted) {
-            // Create the 1v1 room immediately on server
             const room = this.server.arena.create1v1Room();
             const roomId = room.id;
 
-            // Send roomId to BOTH players so they join the SAME room
             this.server.sendToClient(inviterClient.id, {
                 type: PacketType.INVITE_ACCEPTED,
                 mode: mode,
@@ -376,15 +335,10 @@ export class MessageHandler {
                 mode: mode,
                 roomId: roomId
             });
-
-            console.log(`[handleInviteResponse] Invite accepted. Room: ${roomId}`);
         } else {
-            // Send decline notification to inviter
             this.server.sendToClient(inviterClient.id, {
                 type: PacketType.INVITE_DECLINED
             });
-
-            console.log('[handleInviteResponse] Invite declined');
         }
     }
 }

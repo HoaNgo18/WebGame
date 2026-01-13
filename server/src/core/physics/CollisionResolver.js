@@ -263,8 +263,6 @@ export class CollisionResolver {
 
         // Set cooldown
         player.lastTeleportTime = now;
-
-        console.log(`[Wormhole] Player ${player.name} teleported to ${targetWormhole.id}`);
         return true;
     }
 }

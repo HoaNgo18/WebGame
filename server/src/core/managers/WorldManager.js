@@ -28,16 +28,14 @@ export class WorldManager {
             itemsRemoved: []
         };
 
-        // Spawn validator - khởi tạo sau khi các arrays đã được tạo
         this.spawnValidator = new SpawnValidator(this);
 
-        // Init - WORMHOLES FIRST to establish isolation zones
-        this.initWormholes();     // Wormholes TRƯỚC TIÊN
-        this.initObstacles();     // Obstacles (được phép overlap nhau)
-        this.initStations();      // Stations 
-        this.initChests();        // Chests
-        this.initNebulas();       // Nebulas (phải tránh wormhole zones)
-        this.initFood();          // Food cuối vì nhiều và nhỏ
+        this.initWormholes();
+        this.initObstacles();
+        this.initStations();
+        this.initChests();
+        this.initNebulas();
+        this.initFood();
     }
 
     resetDelta() {
@@ -49,7 +47,7 @@ export class WorldManager {
         this.delta.itemsRemoved = [];
     }
 
-    // --- INITIALIZATION (GIỮ NGUYÊN) ---
+
     initFood() {
         for (let i = 0; i < FOOD_COUNT; i++) {
             this.foods.push(this._createFoodObject());
@@ -57,7 +55,6 @@ export class WorldManager {
     }
 
     initObstacles() {
-        // User-specified sizes: small=10, med=25, big=50 (radius = visual/2)
         const meteorSizes = {
             small: { width: 20, height: 20, radius: 10 },   // Visual: 20x20
             med: { width: 50, height: 50, radius: 25 },     // Visual: 50x50
@@ -78,8 +75,6 @@ export class WorldManager {
 
         while (spawned < OBSTACLE_COUNT && attempts < maxAttempts) {
             attempts++;
-
-            // Balanced spawn ratio for better visual variety
             const rand = Math.random();
             let randomSize;
             if (rand < 0.20) randomSize = 'big';        // 25% big (100px)
@@ -93,11 +88,9 @@ export class WorldManager {
             let x, y;
 
             if (randomSize === 'small') {
-                // Cluster spawning for small meteors
                 const clusterX = (Math.random() * MAP_SIZE * 0.8) - MAP_SIZE * 0.4;
                 const clusterY = (Math.random() * MAP_SIZE * 0.8) - MAP_SIZE * 0.4;
 
-                // Check cluster center first
                 if (this.isInWormholeZone(clusterX, clusterY)) {
                     continue;
                 }
@@ -109,7 +102,6 @@ export class WorldManager {
                     x = clusterX + Math.cos(offsetAngle) * offsetDist;
                     y = clusterY + Math.sin(offsetAngle) * offsetDist;
 
-                    // Skip if in wormhole zone
                     if (this.isInWormholeZone(x, y)) continue;
 
                     const spriteKey = meteorSprites[randomSize][Math.floor(Math.random() * meteorSprites[randomSize].length)];
@@ -124,7 +116,6 @@ export class WorldManager {
                 x = (Math.random() * MAP_SIZE) - max;
                 y = (Math.random() * MAP_SIZE) - max;
 
-                // Check wormhole zone
                 if (this.isInWormholeZone(x, y)) {
                     continue;
                 }
@@ -138,10 +129,9 @@ export class WorldManager {
                 spawned++;
             }
         }
-        console.log(`[WorldManager] ${spawned} obstacles spawned (${attempts} attempts)`);
     }
 
-    // Helper: Check if position is within any wormhole's isolation zone
+
     isInWormholeZone(x, y) {
         for (const wh of this.wormholes) {
             const dist = Math.hypot(x - wh.x, y - wh.y);
@@ -163,9 +153,8 @@ export class WorldManager {
             const x = (Math.random() * MAP_SIZE) - max;
             const y = (Math.random() * MAP_SIZE) - max;
 
-            // Check wormhole isolation zone
             if (this.isInWormholeZone(x, y)) {
-                continue; // Try again
+                continue;
             }
 
             this.nebulas.push({
@@ -176,21 +165,17 @@ export class WorldManager {
             });
             spawned++;
         }
-        console.log(`[WorldManager] ${spawned} nebulas spawned (${attempts} attempts)`);
     }
 
     initWormholes() {
-        // Spawn wormholes in pairs (linked to each other)
         const pairCount = Math.floor(WORMHOLE_COUNT / 2);
 
         for (let i = 0; i < pairCount; i++) {
             const id1 = `wormhole_${i * 2}`;
             const id2 = `wormhole_${i * 2 + 1}`;
 
-            // Use SpawnValidator to find clear positions (away from obstacles)
             const pos1 = this.spawnValidator.findValidPosition(WORMHOLE_RADIUS, 150, 30, WORMHOLE_PULL_RADIUS + 100);
 
-            // Second wormhole - try to place far from first
             let pos2;
             let attempts = 0;
             do {
@@ -203,8 +188,7 @@ export class WorldManager {
                 x: pos1.x,
                 y: pos1.y,
                 radius: WORMHOLE_RADIUS,
-                pullRadius: WORMHOLE_PULL_RADIUS,
-                targetId: id2,  // Links to wormhole2
+                targetId: id2,
                 pairIndex: i
             };
 
@@ -213,15 +197,12 @@ export class WorldManager {
                 x: pos2.x,
                 y: pos2.y,
                 radius: WORMHOLE_RADIUS,
-                pullRadius: WORMHOLE_PULL_RADIUS,
-                targetId: id1,  // Links to wormhole1
+                targetId: id1,
                 pairIndex: i
             };
 
             this.wormholes.push(wormhole1, wormhole2);
         }
-
-        console.log(`[WorldManager] Spawned ${this.wormholes.length} wormholes (${pairCount} pairs)`);
     }
 
     initStations() {
@@ -239,7 +220,7 @@ export class WorldManager {
         }
     }
 
-    // --- SPAWNING LOGIC ---
+
     _createFoodObject() {
         const pos = this.spawnValidator.findFoodPosition();
         return {
@@ -335,7 +316,7 @@ export class WorldManager {
         });
     }
 
-    // --- DROP TABLES ---
+
     rollCoinOnly() {
         const pool = [
             ITEM_TYPES.COIN_BRONZE,

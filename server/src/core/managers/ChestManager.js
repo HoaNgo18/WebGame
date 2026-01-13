@@ -19,7 +19,6 @@ export class ChestManager {
         for (let i = 0; i < CHEST_COUNT; i++) {
             this.spawnChest();
         }
-        console.log(`Spawned ${CHEST_COUNT} chests`);
     }
 
     spawnChest() {

@@ -17,17 +17,12 @@ export class ObstacleManager {
     }
 
     init() {
-        // Spawn obstacles (asteroids)
         for (let i = 0; i < OBSTACLE_COUNT; i++) {
             this.spawnObstacle();
         }
-        console.log(`Spawned ${OBSTACLE_COUNT} obstacles`);
-
-        // Spawn nebulas (visual only)
         for (let i = 0; i < NEBULA_COUNT; i++) {
             this.spawnNebula();
         }
-        console.log(`Spawned ${NEBULA_COUNT} nebulas`);
     }
 
     spawnObstacle() {

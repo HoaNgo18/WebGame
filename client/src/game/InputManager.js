@@ -34,8 +34,6 @@ export class InputManager {
             const hasAmmo = myPlayer?.currentAmmo === undefined || myPlayer?.currentAmmo > 0;
             const canShoot = myPlayer && !myPlayer.dead && hasAmmo;
 
-            console.log('[InputManager] Click - myId:', socket.myId, 'player:', !!myPlayer, 'dead:', myPlayer?.dead, 'ammo:', myPlayer?.currentAmmo, 'canShoot:', canShoot);
-
             if (canShoot) {
                 // Play shoot sound only when actually can shoot
                 if (this.scene.soundManager) {

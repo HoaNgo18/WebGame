@@ -282,7 +282,6 @@ router.delete('/delete-account', async (req, res) => {
         // Delete the user account
         await User.findByIdAndDelete(decoded.id);
 
-        console.log(`[Auth] Account deleted: ${user.username}`);
         res.json({ success: true, message: 'Account deleted successfully' });
     } catch (error) {
         console.error('Delete account error:', error);

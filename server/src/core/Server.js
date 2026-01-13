@@ -6,23 +6,19 @@ import { ArenaManager } from '../arena/ArenaManager.js';
 import { MessageHandler } from './handlers/MessageHandler.js';
 import { notifyFriendStatus } from '../api/friends.js';
 
-// Track online users by userId for friends online status
-const onlineUsers = new Map(); // userId -> clientId
+const onlineUsers = new Map();
 
-// Global server instance for API access
 let serverInstance = null;
 
 export const setServerInstance = (server) => {
     serverInstance = server;
 };
 
-// Export function to check if a user is online
 export const isUserOnline = (userId) => {
     if (!userId) return false;
     return onlineUsers.has(userId.toString());
 };
 
-// Export function to add/remove users (called from MessageHandler)
 export const setUserOnline = (userId, clientId) => {
     if (userId) onlineUsers.set(userId.toString(), clientId);
 };
@@ -31,7 +27,6 @@ export const setUserOffline = (userId) => {
     if (userId) onlineUsers.delete(userId.toString());
 };
 
-// Export function to send message to user by userId (for API controllers)
 export const sendToUserById = (userId, packet) => {
     if (!serverInstance || !userId) return false;
 
@@ -43,19 +38,13 @@ export const sendToUserById = (userId, packet) => {
     return false;
 };
 
-/**
- * WebSocket Server - Manages connections and lifecycle
- * Message handling is delegated to MessageHandler
- */
+
 export class Server {
     constructor(serverOrPort = 3000) {
-        // Handle both port number (dev/legacy) and http server instance (prod/single-port)
         if (typeof serverOrPort === 'number') {
             this.wss = new WebSocketServer({ port: serverOrPort });
-            console.log(`WebSocket server running on port ${serverOrPort}`);
         } else {
             this.wss = new WebSocketServer({ server: serverOrPort });
-            console.log('WebSocket server attached to HTTP server');
         }
 
         this.game = new Game(this);
@@ -63,15 +52,12 @@ export class Server {
         this.arena = new ArenaManager(this);
         this.messageHandler = new MessageHandler(this);
 
-        // Set global instance for API access
         setServerInstance(this);
 
         this.setupWSS();
     }
 
-    /**
-     * Setup WebSocket connection handlers
-     */
+
     setupWSS() {
         const limiter = rateLimit('10s', 100, (ws) => {
             ws.close(1008, 'Rate limit exceeded');
@@ -100,20 +86,16 @@ export class Server {
         });
     }
 
-    /**
-     * Handle client disconnection
-     */
+
     handleDisconnect(clientId) {
         const client = this.clients.get(clientId);
         if (!client) return;
 
-        // Remove user from online tracking
         if (client.userId) {
             setUserOffline(client.userId);
             notifyFriendStatus(this, client.userId, false);
         }
 
-        // Remove from arena if in arena
         if (client.arenaRoomId) {
             this.arena.leaveArena(clientId);
         } else {
@@ -124,9 +106,7 @@ export class Server {
         this.broadcast({ type: PacketType.PLAYER_LEAVE, id: clientId });
     }
 
-    /**
-     * Send data to a specific client
-     */
+
     sendToClient(clientId, data) {
         const client = this.clients.get(clientId);
         if (client?.ws.readyState === 1) {
@@ -134,9 +114,7 @@ export class Server {
         }
     }
 
-    /**
-     * Broadcast data to all clients (optionally excluding one)
-     */
+
     broadcast(data, excludeId = null) {
         const message = JSON.stringify(data);
         this.clients.forEach((client, id) => {
@@ -146,16 +124,12 @@ export class Server {
         });
     }
 
-    /**
-     * Generate unique client ID
-     */
+
     generateId() {
         return Math.random().toString(36).substr(2, 9);
     }
 
-    /**
-     * Start game loop
-     */
+
     start() {
         this.game.start();
     }

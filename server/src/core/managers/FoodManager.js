@@ -8,11 +8,9 @@ export class FoodManager {
     }
 
     init() {
-        // Spawn initial food
         for (let i = 0; i < FOOD_COUNT; i++) {
             this.spawnFood();
         }
-        console.log(`Spawned ${FOOD_COUNT} food items`);
     }
 
     spawnFood() {
@@ -42,12 +40,10 @@ export class FoodManager {
         const food = this.foods.get(foodId);
         if (!food) return false;
 
-        // Add XP to player
         if (player.xp !== undefined) {
             player.xp += food.xp;
         }
 
-        // Remove food and respawn new one
         this.foods.delete(foodId);
         this.spawnFood();
 
@@ -67,7 +63,6 @@ export class FoodManager {
             }
         });
 
-        // Collect all touched food
         collected.forEach(id => this.collectFood(id, player));
 
         return collected.length;

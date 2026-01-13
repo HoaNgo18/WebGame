@@ -171,23 +171,18 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
         const handleFriendRequest = (packet) => {
             if (packet.type === 'FRIEND_REQUEST') {
-                console.log('[HomeScreen] Friend request received from:', packet.from?.displayName);
-                // Reload friends list to show the new pending request
                 loadFriends();
             }
         };
 
         const handleInviteResponse = (packet) => {
             if (packet.type === PacketType.INVITE_ACCEPTED) {
-                console.log('[HomeScreen] Invite accepted! Joining room:', packet.roomId);
                 if (waitingForResponse) {
                     clearTimeout(waitingForResponse.timeout);
                     setWaitingForResponse(null);
                 }
-                // Auto-join the game with roomId from server
                 onArenaClick(localUser?.equippedSkin, packet.mode, packet.roomId);
             } else if (packet.type === PacketType.INVITE_DECLINED) {
-                console.log('[HomeScreen] Invite declined');
                 if (waitingForResponse) {
                     clearTimeout(waitingForResponse.timeout);
                     // Show declined state for 1.5 seconds before closing
@@ -197,7 +192,6 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
                     }, 1500);
                 }
             } else if (packet.type === PacketType.INVITE_FAILED) {
-                console.log('[HomeScreen] Invite failed:', packet.reason);
                 if (waitingForResponse) {
                     clearTimeout(waitingForResponse.timeout);
                     setWaitingForResponse(null);
