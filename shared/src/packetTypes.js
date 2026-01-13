@@ -37,5 +37,10 @@ export const PacketType = {
     // Social
     FRIEND_INVITE: 'friend_invite',     // Client -> Server: Mời bạn (kèm mode)
     GAME_INVITE: 'game_invite',         // Server -> Client: Nhận lời mời
-    INVITE_RESPONSE: 'invite_response'  // Client -> Server: Chấp nhận/Từ chối
+    INVITE_RESPONSE: 'invite_response', // Client -> Server: Chấp nhận/Từ chối
+    INVITE_ACCEPTED: 'invite_accepted', // Server -> Client: Lời mời được chấp nhận (kèm roomId)
+    INVITE_DECLINED: 'invite_declined', // Server -> Client: Lời mời bị từ chối
+    INVITE_FAILED: 'invite_failed',     // Server -> Client: Lời mời thất bại (inviter offline)
+    FRIEND_REQUEST: 'friend_request',   // Server -> Client: Có người gửi lời mời kết bạn
+    FRIEND_UPDATE: 'friend_update'      // Server -> Client: Online status changed
 };

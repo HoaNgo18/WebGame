@@ -15,10 +15,11 @@ const LoginScreen = ({ onLoginSuccess }) => {
     const [password, setPassword] = useState('');
     const [email, setEmail] = useState('');
     const [displayName, setDisplayName] = useState('');
+    const [rememberMe, setRememberMe] = useState(false); // Default false for isolation
 
     // Tự động điền token nếu đã lưu trước đó
     useEffect(() => {
-        const savedToken = localStorage.getItem('game_token');
+        const savedToken = sessionStorage.getItem('game_token') || localStorage.getItem('game_token');
         const savedName = localStorage.getItem('game_username');
         if (savedToken && savedName) {
             setTab('login');
@@ -37,28 +38,17 @@ const LoginScreen = ({ onLoginSuccess }) => {
         setConnecting(true);
         try {
             await socket.connect({ name: username });
-            const savedGuest = localStorage.getItem('guest_data');
-            let guestData;
-            if (savedGuest) {
-                const parsed = JSON.parse(savedGuest);
-                guestData = {
-                    ...parsed,
-                    username: username,
-                    isGuest: true,
-                    totalKills: parsed.totalKills || 0,
-                    totalDeaths: parsed.totalDeaths || 0,
-                    coins: parsed.coins || 0,
-                    highScore: parsed.highScore || 0
-                };
-            } else {
-                guestData = {
-                    username: username,
-                    coins: 0,
-                    highScore: 0,
-                    isGuest: true
-                };
-            }
-            onLoginSuccess({ username: username, coins: 0, highScore: 0, isGuest: true });
+            // Guest data is session-only - always start fresh
+            onLoginSuccess({
+                username: username,
+                coins: 0,
+                highScore: 0,
+                totalKills: 0,
+                totalDeaths: 0,
+                isGuest: true,
+                equippedSkin: 'default',
+                skins: ['default']
+            });
         } catch (err) {
             setError('Cannot connect to Game Server!');
             setConnecting(false);
@@ -81,12 +71,26 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
             if (!res.ok) throw new Error(data.error || 'Login failed');
 
-            localStorage.setItem('game_token', data.token);
-            localStorage.setItem('game_username', data.user.username);
+            if (rememberMe) {
+                // Persistent Login
+                localStorage.setItem('game_token', data.token);
+                localStorage.setItem('game_username', data.user.username);
+                // Clear session to avoid confusion? No, session is fine.
+                // But let's verify Logic: APP reads session || local.
+                // If I write local, APP reads local. Good.
+            } else {
+                // Session Login (Tab Isolated)
+                sessionStorage.setItem('game_token', data.token);
+                sessionStorage.setItem('game_username', data.user.username);
+                // Important: If usage was previously persistent, we might want to clear local?
+                // User explicitly UNCHECKED remember me -> implying they don't want persistence.
+                localStorage.removeItem('game_token');
+                localStorage.removeItem('game_username');
+            }
 
             await socket.connect({
                 token: data.token,
-                name: displayName || data.user.username
+                name: data.user.username
             });
 
             onLoginSuccess({
@@ -120,7 +124,9 @@ const LoginScreen = ({ onLoginSuccess }) => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-            localStorage.setItem('game_token', data.token);
+            // Use sessionStorage for tab isolation (user can check "Remember Me" on login if needed)
+            sessionStorage.setItem('game_token', data.token);
+            sessionStorage.setItem('game_username', data.user.username);
 
             await socket.connect({
                 token: data.token,
@@ -175,8 +181,21 @@ const LoginScreen = ({ onLoginSuccess }) => {
                                 onKeyDown={stopPropagation}
                             />
                         </div>
+
+                        {/* REMEMBER ME */}
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', marginTop: '5px' }}>
+                            <input
+                                type="checkbox"
+                                id="rememberMe"
+                                checked={rememberMe}
+                                onChange={e => setRememberMe(e.target.checked)}
+                                style={{ width: '16px', height: '16px', marginRight: '8px', cursor: 'pointer' }}
+                            />
+                            <label htmlFor="rememberMe" style={{ color: '#aaa', fontSize: '14px', cursor: 'pointer', userSelect: 'none' }}>Remember Me</label>
+                        </div>
+
                         <button onClick={handleLogin} disabled={connecting} className="submit-btn login-btn">
-                            {connecting ? 'CONNECTING...' : 'LOGIN & PLAY'}
+                            {connecting ? 'LOGGING IN...' : 'LOGIN'}
                         </button>
                     </div>
                 )}

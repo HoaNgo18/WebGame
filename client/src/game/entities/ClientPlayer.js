@@ -298,8 +298,8 @@ export class ClientPlayer {
 
     setVisibleState(isVisible) {
         this.container.setVisible(isVisible);
-        // Nếu Text add vào container thì không cần dòng dưới, còn nếu add rời thì cần:
-        this.text.setVisible(isVisible);
+        // Null check for text that might be destroyed
+        this.text?.setVisible(isVisible);
     }
 
     setAlphaState(alpha) {
@@ -311,7 +311,7 @@ export class ClientPlayer {
         this.scene.tweens.killTweensOf(this.shieldSprite);
         this.scene.tweens.killTweensOf(this.thrustFlame);
         this.container.destroy();
-        // Text nằm trong container sẽ tự hủy, nếu nằm ngoài thì cần destroy thủ công
-        this.text.destroy();
+        // Null check for text that might be in container or separate
+        this.text?.destroy();
     }
 }

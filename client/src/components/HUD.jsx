@@ -53,8 +53,9 @@ const HUD = ({ isArena = false, arenaMode = 'arena' }) => {
                 const newSelectedSlot = myPlayer.selectedSlot !== undefined ? myPlayer.selectedSlot : 0;
 
                 setStats(prev => {
-                    // Check all fields including inventory and selectedSlot
-                    const inventoryChanged = JSON.stringify(prev.inventory) !== JSON.stringify(newInventory);
+                    // Efficient shallow array comparison (avoids JSON.stringify GC pressure)
+                    const arraysEqual = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+                    const inventoryChanged = !arraysEqual(prev.inventory, newInventory);
                     const slotChanged = prev.selectedSlot !== newSelectedSlot;
 
                     if (prev.lives !== myPlayer.lives ||
