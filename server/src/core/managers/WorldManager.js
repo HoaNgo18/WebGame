@@ -188,6 +188,7 @@ export class WorldManager {
                 x: pos1.x,
                 y: pos1.y,
                 radius: WORMHOLE_RADIUS,
+                pullRadius: WORMHOLE_PULL_RADIUS,
                 targetId: id2,
                 pairIndex: i
             };
@@ -197,6 +198,7 @@ export class WorldManager {
                 x: pos2.x,
                 y: pos2.y,
                 radius: WORMHOLE_RADIUS,
+                pullRadius: WORMHOLE_PULL_RADIUS,
                 targetId: id1,
                 pairIndex: i
             };
