@@ -148,6 +148,8 @@ function App() {
 
     const handleLogout = () => {
         socket.fullReset();
+        sessionStorage.removeItem('game_token');
+        sessionStorage.removeItem('game_username');
         localStorage.removeItem('game_token');
         localStorage.removeItem('game_username');
         setUser(null);

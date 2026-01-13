@@ -44,6 +44,7 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     const [selectedFriends, setSelectedFriends] = useState(new Set()); // Set of friend IDs
     const [friendFilter, setFriendFilter] = useState(''); // Search filter for friends
     const [waitingForResponse, setWaitingForResponse] = useState(null); // { friendName, friendTag, mode, timeout }
+    const [friendsRefreshTrigger, setFriendsRefreshTrigger] = useState(0); // Trigger to reload friends
 
     const handleToggleFriend = (friendId) => {
         const newSelected = new Set(selectedFriends);
@@ -171,7 +172,10 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
         const handleFriendRequest = (packet) => {
             if (packet.type === 'FRIEND_REQUEST') {
-                loadFriends();
+                setFriendsRefreshTrigger(prev => prev + 1); // Trigger friends reload
+            }
+            if (packet.type === 'FRIEND_ACCEPTED') {
+                setFriendsRefreshTrigger(prev => prev + 1); // Trigger friends reload
             }
         };
 
@@ -216,14 +220,14 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
     // Note: USER_DATA_UPDATE is handled by App.jsx which updates the `user` prop
     // HomeScreen just syncs localUser from the prop - no separate listener needed
 
-    // Load leaderboard or friends when tab changes
+    // Load leaderboard or friends when tab changes or refresh triggered
     useEffect(() => {
         if (activeTab === 'leaderboard') {
             loadLeaderboard();
         } else if (activeTab === 'friends') {
             loadFriends();
         }
-    }, [activeTab]);
+    }, [activeTab, friendsRefreshTrigger]); // Added trigger to reload when friend accepted
 
     const loadFriends = async () => {
         if (!localUser || localUser.isGuest) return;
@@ -260,6 +264,11 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
             if (res.ok) {
                 setFriendSuccess('Friend request sent!');
                 setSearchName('');
+                // Show success message for 1.5s before closing
+                setTimeout(() => {
+                    setShowAddFriend(false);
+                    setFriendSuccess('');
+                }, 1500);
                 loadFriends(); // Refresh list to show sent status
             } else {
                 setFriendError(data.error || 'Failed to send request');
@@ -447,8 +456,8 @@ const HomeScreen = ({ user, onPlayClick, onArenaClick, onLogout, onLoginSuccess 
 
             if (!res.ok) throw new Error(data.error || 'Login failed');
 
-            localStorage.setItem('game_token', data.token);
-            localStorage.setItem('game_username', data.user.username);
+            sessionStorage.setItem('game_token', data.token);
+            sessionStorage.setItem('game_username', data.user.username);
 
             // Determine in-game name:
             // - If displayName exists and not empty → use it

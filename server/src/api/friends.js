@@ -176,6 +176,16 @@ export const FriendsController = {
             await user.save();
             await requester.save();
 
+            // Send real-time notification to requester that their request was accepted
+            sendToUserById(requester._id.toString(), {
+                type: 'FRIEND_ACCEPTED',
+                friend: {
+                    id: user._id.toString(),
+                    displayName: user.displayName || user.username,
+                    tag: user.tag || '0000'
+                }
+            });
+
             res.json({ message: 'Friend request accepted' });
 
         } catch (err) {
