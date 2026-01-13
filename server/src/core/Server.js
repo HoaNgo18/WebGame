@@ -48,8 +48,16 @@ export const sendToUserById = (userId, packet) => {
  * Message handling is delegated to MessageHandler
  */
 export class Server {
-    constructor(port = 3000) {
-        this.wss = new WebSocketServer({ port });
+    constructor(serverOrPort = 3000) {
+        // Handle both port number (dev/legacy) and http server instance (prod/single-port)
+        if (typeof serverOrPort === 'number') {
+            this.wss = new WebSocketServer({ port: serverOrPort });
+            console.log(`WebSocket server running on port ${serverOrPort}`);
+        } else {
+            this.wss = new WebSocketServer({ server: serverOrPort });
+            console.log('WebSocket server attached to HTTP server');
+        }
+
         this.game = new Game(this);
         this.clients = new Map();
         this.arena = new ArenaManager(this);
@@ -58,7 +66,6 @@ export class Server {
         // Set global instance for API access
         setServerInstance(this);
 
-        console.log(`WebSocket server running on port ${port}`);
         this.setupWSS();
     }
 

@@ -8,15 +8,11 @@ export const FriendsController = {
             const { targetUsername } = req.body;
             const requesterId = req.user.userId;
 
-            console.log('[DEBUG sendRequest] requesterId:', requesterId);
-            console.log('[DEBUG sendRequest] targetUsername:', targetUsername);
-
             if (!targetUsername) {
                 return res.status(400).json({ error: 'Username/Tag is required' });
             }
 
             const requester = await User.findById(requesterId);
-            console.log('[DEBUG sendRequest] requester found:', requester ? requester.username : 'NULL');
 
             // Parse Name#Tag
             let target;
@@ -25,7 +21,6 @@ export const FriendsController = {
                 const searchTag = parts.pop(); // Last part is tag
                 const searchName = parts.join('#'); // Join rest in case name has # (though unlikely)
 
-                console.log('[DEBUG sendRequest] Searching for displayName:', searchName, 'tag:', searchTag);
 
                 // Search by Display Name + Tag
                 target = await User.findOne({
@@ -37,15 +32,11 @@ export const FriendsController = {
                 target = await User.findOne({ username: targetUsername });
             }
 
-            console.log('[DEBUG sendRequest] target found:', target ? target.username : 'NULL');
 
             if (!target) {
                 return res.status(404).json({ error: 'User not found' });
             }
 
-            console.log('[DEBUG sendRequest] requester._id:', requester._id.toString());
-            console.log('[DEBUG sendRequest] target._id:', target._id.toString());
-            console.log('[DEBUG sendRequest] Are they equal?', requester._id.toString() === target._id.toString());
 
             // Self-check using _id (more reliable than username)
             if (requester._id.toString() === target._id.toString()) {
@@ -276,7 +267,6 @@ export const FriendsController = {
                 };
             }).filter(f => f !== null);
 
-            console.log(`[DEBUG getFriends] User ${user.username} has ${friends.length} friends`);
 
             res.json({ friends });
 
