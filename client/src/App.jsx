@@ -132,11 +132,12 @@ function App() {
 
     const handleLeaveArena = () => {
         socket.leaveArena();
-        if (socket.ws) {
-            socket.ws.close();
-            socket.ws = null;
-            socket.isConnected = false;
-        }
+        // DO NOT close socket here - we need it to remain online in lobby
+        // if (socket.ws) {
+        //     socket.ws.close();
+        //     socket.ws = null;
+        //     socket.isConnected = false;
+        // }
         setGameState('home');
         setArenaCountdown(null);
         setArenaPlayerCount(0);
